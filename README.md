@@ -2,7 +2,7 @@
 
 ---
 
-<img src="study_design#OG.png">
+<img src="study_design.png">
 
 ---
 
