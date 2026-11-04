@@ -1,0 +1,1678 @@
+TID,GID,Guidelines,What's the purpose of the guideline?,What's problem does it address?,In what context is it applicable?,How can be implemented?,Is there any other viable way?,Are there any practical examples?
+T01,G01,"Adopt standardized, interoperable communication protocols, and explicitly document topic structures, access permissions, and security configurations.","Promote the interoperability, security, and auditability of distributed systems in EdgeAI environments, ensuring that multiple — and potentially heterogeneous — components are able to communicate with reliability, predictability, and minimal ambiguity","""The fragmentation of communication protocols hinders interoperability among edge agents, cloud services, and embedded devices.""
+
+""The absence of formal documentation of topics, permissions, and security policies hampers testing, security validation, integration, and maintenance.""
+
+""In critical systems (e.g., healthcare, autonomous vehicles), failure to comply with such practices may lead to malfunctions or regulatory violations (such as GDPR or the AI Act).""","""In EdgeAI architectures with multiple nodes and layers (cloud–edge–device).""
+
+""In systems where sensitive data is exchanged (e.g., healthcare, smart cities, Industry 4.0).""
+
+""In applications that demand scalability, auditability, and end-to-end security.""
+
+""Particularly critical in solutions based on ROS or MQTT, where communication is highly topic- and service-oriented.""","Adopt standard protocols such as MQTT (v5.0+), DDS, OPC-UA, or REST with support for authentication, encryption, and configurable QoS.
+
+Document:
+• The topic tree (e.g., /env/sensor/temperature), its data types, directionality (pub/sub), and periodicity.
+• Permissions (who publishes, who subscribes, and under which conditions).
+• Security configurations: TLS, mutual authentication, logical firewalling, etc.
+
+For ROS, use the std_msgs message standard and tools such as rqt_graph to visualize flows; for MQTT, use ACLs and JWT-based authentication as described in security guidelines such as OWASP and RSF.","Partial alternatives include:
+
+• Defining API or message contracts informally (e.g., through comments or README files); however, this approach decreases reliability and reusability.
+
+• Using proprietary middleware with closed protocols; nevertheless, this compromises interoperability and auditability.
+
+The recommended best practice remains the formal standardization and documentation of such contracts.","    The SPENCER project, referenced in the articles “Mining guidelines for architecting robotics software” and “How do you Architect your Robots?”, standardizes messages using geometry_msgs and sensor_msgs, and explicitly defines communication channels, enabling reuse and loose coupling between modules.
+
+    In EdgeAIBench (ICU and Smart Home), data flows between layers through well-defined structures and pipelines — documented via configuration files, with a focus on security and efficiency.
+
+    The use of Model Cards and Data Source Cards in Kotilainen’s work (2025) enables the recording of access configurations and risk metadata in machine-readable formats — supporting secure orchestration and regulatory compliance.
+"
+T01,G02,Adopt an abstract event bus that allows switching the underlying broker or communication protocol without modifying your application code.,"Facilitate the portability, maintainability, and architectural resilience of EdgeAI systems by decoupling application logic from the communication infrastructure. This fosters vendor independence, simplifies testing, and enables updates without structural impact on the application code.","Strong coupling between business logic and communication mechanisms (e.g., MQTT, ROS, AMQP, ZeroMQ).
+
+Difficulty in adapting to different scenarios (cloud, fog, edge) with varying requirements (QoS, latency, privacy).
+
+High cost of porting the application across environments with distinct brokers (e.g., from MQTT to DDS).","In distributed systems where multiple nodes (communicating through topics, messages, or events) must operate in a coordinated manner.""
+
+""In edge–cloud continuum architectures with multiple levels of connectivity and availability.""
+
+""In applications where it is desirable to replace the middleware or broker (e.g., ROS 1 → ROS 2, MQTT → NATS) for reasons of performance, cost, or compatibility.","Create an abstraction layer over the messaging bus, with interfaces such as publish(event), subscribe(topic, callback), etc.
+
+Use frameworks that support multiple backends:
+• ROS2 with RMW (ROS Middleware Abstraction) enables switching between DDS vendors such as FastDDS or CycloneDDS.
+• Zenoh, Eclipse Cyclone DDS, and eProsima provide abstract layers for edge messaging.
+• In Python, libraries such as event-bus, pyee, or wrappers around MQTT/NATS allow the creation of pluggable adapters.
+
+Implement dependency injection to dynamically select the protocol at runtime (via environment variables, configuration, or service discovery).","• Adapter pattern with direct binding for each protocol — although it requires recompilation and testing whenever changes occur.
+
+• Rewriting the application for every new protocol — impractical in complex and tightly coupled systems.","    In Modeling Self-Adaptive IoT Architectures (Alfonso et al.), MQTT usage is encapsulated within abstract gateways and nodes, allowing the communication layer to adapt without impacting the logic of containers and services.
+
+    ROS 2 employs rmw_implementation as a pluggable backend, enabling the replacement of CycloneDDS with FastRTPS without modifying the application code.
+
+    In In-Edge AI (Wang et al.), the abstraction of communication between DRL agents enables operation across multiple layers (edge, fog, cloud), ensuring interoperability with diverse networks and federated brokers."
+T01,G03,Implement automated health checks and load balancing mechanisms to ensure traffic is routed only to healthy service instances.,"Ensure high availability, operational resilience, and quality of service (QoS) in distributed systems by guaranteeing that only active and responsive service instances receive traffic, thereby preventing cascading failures and undesired disruptions in the data flow.","Sending requests to unavailable services degrades user experience and undermines data collection or the execution of critical tasks.
+
+The absence of rapid failure detection in edge instances — frequent in environments with intermittent connectivity or limited power supply.
+
+Inefficient load balancing between edge and cloud nodes leads to local overload, remote underutilization, and non-optimized energy consumption.","In architectures with multiple service instances distributed across edge, fog, and cloud devices.""
+
+""In systems that use containers, microservices, or brokers that dynamically redirect tasks.""
+
+""In applications that require continuous reliability (e.g., health monitoring, industrial automation, smart cities).","Automated health checks:
+• Implement endpoints /healthz, /readyz, or /status with liveness and readiness probes.
+• Use active probes (e.g., curl, ping, grpc-health-probe) with services such as Kubernetes, Consul, Nomad, Docker Swarm, or NGINX.
+
+Load balancing mechanisms:
+• At the edge: use local proxies such as Envoy, HAProxy, or Traefik with support for active/passive health checking.
+• At the core/cloud: apply load balancers such as Istio, Linkerd, or NGINX Ingress with filters based on status and latency.
+
+Integration with circuit breakers and retries for automatic fallback (e.g., with resilience4j, Envoy, or Spring Cloud).","Partial alternatives include:
+
+• Manual or reactive external monitoring (e.g., logs combined with alerts), which does not automatically reroute traffic.
+
+• Load balancing based solely on round-robin or priority, without considering the instance state — efficient, yet risky.
+
+The best practice is to employ automated health checks integrated into intelligent routers or service meshes with state awareness.","    Kubernetes uses liveness and readiness probes to determine whether a container should be restarted or removed from traffic.
+
+    In In-Edge AI, task redistribution in federated learning is conditioned on local failure detection, requiring continuous health checks of edge nodes.
+
+    Edge nodes in How do you Architect your Robots? (Malavolta et al.) are frequently restarted by watchdogs and feature automatic rerouting of critical topics via ROS 2 upon failure detection."
+T01,G04,Enable dynamic transport negotiation between edge and cloud components to ensure optimal communication under varying network conditions.,"Adapt the communication channel and transport protocol between edge and cloud components dynamically in order to ensure performance, reliability, and energy efficiency, even under unstable network conditions such as latency variations, packet loss, or limited bandwidth.","Fixed protocols (e.g., TCP, MQTT, HTTP) do not always deliver optimal performance under all conditions — for instance, TCP may fail on mobile links with high packet loss.""
+
+""Edge devices may be connected through heterogeneous networks (Wi-Fi, LTE, LoRa, mesh), each with distinct characteristics and limitations.""
+
+""Inefficient communication results in energy waste, increased latency, and reduced system robustness.""","In distributed architectures with intermittent communication among nodes, especially in mobile, industrial, or resource-constrained environments.""
+
+""In systems that use multiple networking technologies such as Wi-Fi, 4G/5G, ZigBee, LoRaWAN, Ethernet, or mesh.""
+
+""In cases where different communication requirements coexist: low latency for alarms, high throughput for video, and reliability for critical commands.","Runtime transport negotiation:
+• Create a transport adapter with support for multiple protocols (e.g., HTTP/2, gRPC, MQTT, QUIC, WebSockets).
+• Use context detection (e.g., RTT, jitter, throughput, available energy) to select the most suitable channel.
+• Employ libraries such as libp2p, ZeroMQ, QUIC-Go, or NATS, which already provide native fallback/adaptability.
+
+Incorporate policy-based decision logic:
+• Rules such as: ""if latency > 200 ms and jitter is high, use UDP with FEC""; ""if link is stable, use gRPC with compression.
+
+Automatic fallback with buffering:
+• If the primary channel fails, switch to an alternative protocol (e.g., MQTT → HTTP REST) and resend the payload.","• The use of fixed protocols with timeout and retry mechanisms — though ineffective under adverse conditions.
+
+• Intermediate load balancers (e.g., proxies with retries or circuit breakers) may mask issues, but they do not dynamically optimize transport.
+
+The ideal solution combines real-time adaptability with intelligent decision-making, either locally at the edge agents or through centralized control.","    Mobile applications alternate between QUIC/HTTP3 and MQTT depending on payload type and link quality.
+
+    In In-Edge AI, offloading algorithms adjust transmission between devices and edge nodes based on channel conditions — reinforcing the use of adaptive layers.
+
+    ROS 2 supports switching DDS vendors with different transport profiles and UDP multicast capabilities, which can be enabled in environments with low latency requirements or tolerable packet loss."
+T05,G05,Use middleware that enables interoperability across heterogeneous systems to maintain seamless communication along the cloud–edge continuum.,"Enable continuous, robust, and efficient communication among distinct software and hardware components — operating across different layers (cloud, fog, edge, devices) — through a common abstraction layer, thereby minimizing integration effort, promoting portability, and reducing coupling.","""Technological fragmentation: different nodes use incompatible languages, operating systems, networks, and protocols.""
+
+""Low reusability of components across platforms (e.g., edge containers do not work in the cloud without adaptation).""
+
+""Difficulty in orchestrating, tracking, or updating distributed components across different levels of the architecture.""","EdgeAI systems with multiple domains and platforms (embedded devices, gateways, servers, cloud).""
+
+""Industrial, urban, or healthcare environments with heterogeneous legacy systems and the need for secure integration.""
+
+""Solutions that must switch between components at runtime or move services across layers (e.g., edge → cloud or vice versa).","Adopt interoperability-focused middleware:
+• ROS/ROS2 with hardware abstraction and DDS support.
+• Eclipse Zenoh: unified pub/sub, peer-to-peer, and store/query communication for edge–cloud.
+• OPC-UA: for integration with industrial devices (sensors, PLCs, SCADA).
+• gRPC with proto3: for remote calls with multi-language support and integration with service meshes.
+
+Define a common data ontology or implement format conversion (e.g., JSON ↔ Protobuf ↔ OPC).
+
+Use adapters and bridges (e.g., MQTT ↔ DDS, ROS ↔ OPC) to connect legacy components with modern systems.","Yes, but with limitations:
+
+• Containers exposing REST APIs can be employed for interoperability, though at the cost of increased latency and tighter coupling.
+
+• Defining a custom protocol between components offers flexibility, but lacks scalability and reusability.
+
+A middleware-based approach is preferable, as it supports evolution, adaptation, and compatibility across vendors and devices.","    The SPENCER project and other ROS-based robots utilize middlewares such as ROS 2 with DDS to harmonize sensors, maps, and logic across modules with varying computational capabilities.
+
+    In industrial EdgeAI systems, OPC-UA is employed as the backbone for integration between IoT gateways and SCADA/ERP control systems.
+
+    In EdgeAIBench, communication between edge and cloud is supported by a layered architecture that can be adapted with configurable middleware for multiple deployment types.
+"
+T05,G06,"Enable transparent end-to-end encryption via middleware that securely intercepts communication between edge and cloud components, including traffic generated by SDKs.","Ensure the confidentiality and integrity of sensitive data throughout the entire path between Edge devices and cloud services, in a manner transparent to developers — including third-party libraries (SDKs) — by means of an intermediate security layer.","Embedded SDKs and libraries often generate traffic that cannot be directly controlled (e.g., HTTP APIs without TLS or with poor configuration).
+
+The absence of end-to-end encryption may expose data in transit (e.g., biometric, sensory, or location data).
+
+Difficulty in enforcing homogeneous security across heterogeneous architectures (different languages, operating systems, and protocols).","EdgeAI environments that process critical or regulated data (healthcare, smart cities, industrial automation).""
+
+""Systems with embedded third-party SDKs (e.g., sensor libraries, vision modules, legacy brokers).""
+
+""Infrastructures where developers do not have full control over the entire software stack.","Security middleware proxy:
+• Insert a sidecar (e.g., Envoy, NGINX, Linkerd) that transparently intercepts traffic.
+• Enable mTLS (Mutual TLS) between services, including connections generated by SDKs.
+
+Automatic encrypted tunneling:
+• Redirect all outbound connections through a secure VPN (e.g., WireGuard, Tailscale) or TLS tunnel.
+
+Security inspection and enforcement:
+• Middleware can reject insecure connections (e.g., downgrade attacks, invalid SSL) and enforce security headers.
+
+Service mesh with transparent encryption:
+• Use Istio, Consul Connect, or Kuma to apply universal mTLS and secure routing without modifying services.","• Manually embedding TLS or encryption within services — functional, yet complex and difficult to maintain at scale.
+
+• Employing point-to-point VPNs (e.g., IPsec) — effective, but rigid and with limited granular control.
+
+A middleware- or service mesh–based approach provides security as part of the infrastructure, reducing developer dependency and ensuring consistency.","    Envoy Proxy intercepts HTTP calls generated by SDKs and redirects them via mTLS to cloud services.
+
+    In federated Edge AI networks, such as in In-Edge AI or EdgeAIBench, TLS tunnels are used to secure distributed inference and gradient exchange even with embedded SDKs.
+
+    Istio implements transparent mTLS between containers on edge and cloud nodes without requiring changes to application code."
+T05,G07,Adopt a secure onboarding workflow that leverages a membership service to automatically connect new devices to edge nodes and register them with the cloud hub before initiating any data transmission.,"Ensure that only trusted, authenticated, and registered devices participate in the EdgeAI architecture, establishing an initial layer of trust and traceability before any data is transmitted. This strengthens network security, facilitates identity management, and reduces risks associated with malicious or compromised devices.","""Devices may connect directly to the edge or cloud without undergoing formal authentication and authorization processes, which opens the door to attacks such as spoofing, sniffing, or data leakage.""
+
+""The lack of prior registration hinders the enforcement of access control policies, permission management, monitoring, and updates.""
+
+""In distributed and dynamic architectures, it is not feasible to register devices manually.""","In any EdgeAI architecture where new devices are dynamically added (e.g., mobile sensors, cameras, wearables).
+
+In scenarios requiring compliance with security and privacy regulations (such as the AI Act, HIPAA, GDPR).
+
+In solutions involving multiple domains and instances (federated environments, industries, hospitals, smart cities).","Membership Service:
+• Use a central (or federated) registration authority, such as AWS IoT Core, Azure DPS, Hyperledger Fabric CA, or a custom component.
+
+Typical secure onboarding workflow:
+• Device powers on → attempts registration via a secure channel (TLS).
+• Membership service authenticates using certificate, TPM, PSK, or OTP token.
+• If approved, the service registers the device in both the cloud hub and the local edge.
+• Only then is traffic permitted.
+
+Support for automatic provisioning with X.509 certificates, remote attestation, or declarative files with pre-approved UUIDs.","• Registering devices manually or through the CLI — feasible in small-scale environments, but not scalable.
+
+• Allowing automatic discovery and connection without prior verification — convenient, yet insecure and often non-compliant with regulations.
+
+The adoption of automated workflows with strong authentication and pre-registration constitutes the ideal approach for distributed and heterogeneous environments.","    AWS IoT Device Provisioning uses certificates or UUIDs with predefined policies to automatically register devices in a secure hub.
+
+    In EdgeAIBench, edge devices are integrated into a testbed that simulates onboarding via federated authentication before joining scenarios such as ICU or Smart Home.
+
+    Hyperledger Fabric employs a certificate authority (CA) to issue digital identities before allowing peers to participate in the network — an adaptable architecture for federated EdgeAI."
+T17,G08,Design and implement logical abstractions to organize and manage overlay networks across edge nodes.,"Enable complex networks among Edge nodes to be organized, monitored, and adapted in a scalable and efficient manner through logical abstraction layers that are independent of the physical infrastructure or actual network topology. This facilitates intelligent routing, service discovery, segmented security, and task orchestration in distributed environments.","""Difficulty in managing direct connections among multiple edge nodes, especially when they are behind NATs, firewalls, or mobile networks.""
+
+""Physical topologies change frequently (shutdowns, mobility, reconfiguration), making direct routing unstable.""
+
+""The lack of abstractions prevents applications or orchestration systems from understanding the 'logical network' of collaboration among nodes.""","Environments with multiple Edge nodes operating in a collaborative or federated manner.""
+
+""Distributed infrastructures with unstable connectivity, NATs, firewalls, or mobility (e.g., drones, fleets, smart cities).
+
+""Architectures that must organize nodes by roles, regions, computational capacity, or security policies.","Logical abstraction layers:
+• Create representations such as clusters, functional groups, coverage areas, or security regions.
+• Use logical routing tables based on roles (e.g., leader node, sensor node, aggregator node).
+
+Technologies for overlay networks:
+• WireGuard / Tailscale / Nebula to create encrypted meshes over public or private IP.
+• Libp2p / NATS / ZeroTier to form secure and adaptive P2P networks with built-in discovery.
+• Kubernetes + CNI plugins (e.g., Calico, Cilium) to model overlay networks with declarative policies.
+
+Integration with orchestrators:
+• Controllers update the logical network based on real-time conditions (QoS, load, failures).
+• APIs or CRDs allow querying and modifying the logical network at runtime.","• Manually managing point-to-point connections — functional, but fragile, error-prone, and with limited scalability.
+
+• Employing fixed physical networks — feasible in datacenter environments, but impractical in distributed edge scenarios.
+
+The construction of logical overlay networks abstracts underlying complexities and facilitates mobility, scalability, and resilience.","    Tailscale implements secure mesh networks between edge nodes using WireGuard, with identity-based authentication.
+
+    Libp2p (from IPFS) enables the definition of logical networks and adaptive discovery among distributed peers — already utilized in decentralized edge AI.
+
+    KubeEdge uses abstractions such as EdgeNode, EdgeCluster, and MetadataSync to synchronize logical networks between cloud and edge.
+
+    In EdgeAIBench, environments simulate logically segmented networks (e.g., ICU vs. Smart Home) with adaptable groupings of edge nodes for specific testing scenarios.
+"
+T04,G09,"Design Edge systems using a microservices-based architecture, breaking down system functionalities into loosely coupled, independent components.","Promote modularity, scalability, reusability, and ease of maintenance in EdgeAI systems by structuring the architecture into small, independent, and decoupled components that can evolve in isolation and be deployed flexibly according to the resources available.","Monolithic architectures hinder the updating, testing, and selective scaling of functionalities, especially in environments with energy and connectivity constraints.""
+
+""Strong coupling among components limits portability across heterogeneous edge devices.""
+
+""Horizontal scalability or selective distribution (e.g., moving only the inference service to the edge) becomes unfeasible without modularization.""","In hybrid Edge–Cloud architectures with variable requirements of availability, connectivity, and computational resources.""
+
+""In environments that demand local resilience (e.g., device control even without cloud connectivity).""
+
+""In solutions where different stakeholders develop or operate distinct parts of the system (e.g., different partners manage computer vision, control, and security).""","Define clear service boundaries (e.g., video capture, preprocessing, inference, storage, actuator control).
+
+Package each service in isolated containers (e.g., Docker, Podman) with well-defined APIs (e.g., REST, gRPC, MQTT).
+
+Adopt lightweight orchestrators (e.g., K3s, KubeEdge, Balena, Open Horizon) to manage instances and dependencies at the edge.
+
+Ensure per-service security and observability (e.g., sidecars for logging, authentication, metrics).","Yes, but with limitations:
+
+• Monolithic applications with plugins — allow some degree of extensibility, but with high coupling.
+
+• Internal componentization through threads or processes — functional, yet requiring more manual control over dependencies, deployment, and failures.
+
+Microservices provide a much higher degree of flexibility, which is particularly relevant in edge contexts.","    EdgeAIBench organizes workloads into modular pipelines (e.g., preprocessing, inference, post-processing), enabling isolated analysis and runtime reconfiguration.
+
+    ROS 2 adopts a microservices-style architecture based on independent nodes communicating via topics — a common model in robotics and edge AI.
+
+    In KubeEdge-based architectures, each edge node functionality (such as metadata synchronization, messaging, or logging) is implemented as a microservice, facilitating continuous updates and offline fallback.
+"
+T04,G10,Expose orchestration and communication layers between modular components to support integration workflows and automation.,"Enable EdgeAI systems to be automatable, integrable, and extensible by explicitly exposing the layers responsible for orchestration and communication among modules, thereby promoting observability, interoperability, and reuse across different scenarios and domains.","""Manual or tightly coupled integrations hinder the composition of customized flows, process automation, monitoring, or auditing.""
+
+""Embedded and undocumented orchestrations limit the adaptability of the solution (e.g., the inability to replace one module with another serving the same function).""
+
+""In distributed architectures, the lack of visibility into the message flow hampers testing, troubleshooting, and extensibility.""","In modular or microservice-based solutions, especially at the edge, where modules are executed on separate or distributed devices.""
+
+""In architectures that require event-based automation, declarative flows, and integration with external tools (e.g., CI/CD, monitoring, AI retraining).""
+
+""In industrial, robotic, or urban environments that depend on dynamic flows between sensors, actuators, and AI modules.""","Expose orchestration APIs or brokers:
+• REST/gRPC APIs (e.g., /task/start, /module/graph) or declarative MQTT interfaces (e.g., control topics).
+
+Separate control and execution modules:
+• Example: orchestrator issues commands, agents execute; communication via queues/bus (e.g., NATS, MQTT, ROS2).
+
+Enable declarative integration:
+• YAML/JSON with execution graphs, schedules, and event-based triggers.
+• Support external tools via webhooks, watchers, or CLI.
+
+Expose metrics and events:
+• Each layer must emit traceable events for observability and automation tools.","• Systems with embedded orchestration logic — feasible for simple solutions, but difficult to maintain or extend.
+
+• Hardcoded point-to-point integrations — functional at first, but detrimental to scalability and reusability.
+
+By explicitly exposing these layers, the system becomes more flexible, traceable, and extensible.","    KubeEdge exposes layers such as EdgeMesh (communication) and EdgeController (orchestration) via APIs and synchronized events.
+
+    In ROS 2, the orchestration layer can be managed by tools like ros2 launch or SMACH, while communication is observable via ros2 topic, facilitating the integration and automation of robotic tasks.
+
+    In EdgeAIBench, pipeline stages (e.g., data collection, processing, inference) can be monitored or adapted at runtime through configurable files and observable layers— a model similar to declarative flows in frameworks like Node-RED or NiFi.
+"
+T04,G11,"Adopt a pub/sub messaging layer to decouple service interactions and enable scalable, event-driven communication across distributed components.","Promote an event-driven, scalable, and resilient architecture by decoupling message producers and consumers through a pub/sub bus. This facilitates the dynamic composition of services, increases fault tolerance, and enhances adaptability in distributed EdgeAI systems.","""Direct coupling among services (e.g., synchronous REST calls) hinders scalability, monitoring, and component replacement.""
+
+""Distributed systems must react to real-time events and often include devices with intermittent connectivity or availability.""
+
+""The lack of asynchronous communication prevents multiple consumers from processing events in parallel or a producer from sending data without knowing who is listening.""","""In systems with multiple data producers and consumers (e.g., sensors, actuators, AI modules, controllers).""
+
+""In heterogeneous architectures with components written in different languages or running at different levels (device → gateway → cloud).""
+
+""In cases requiring horizontal scalability, temporal decoupling, and asynchronous event processing (e.g., logs, inferences, alarms).","Choose an appropriate pub/sub infrastructure:
+• MQTT, Apache Kafka, NATS, Redis Streams, Google Pub/Sub, ZeroMQ, or DDS.
+
+Define well-structured topics and payloads:
+• Standardize events with schemas (e.g., JSON Schema, Protobuf, Avro).
+• Establish conventions for topics (e.g., edge/sensor/temperature, events/inference/done).
+
+Integrate with other services via brokers:
+• Example: orchestrators listening on task/ready, modules publishing to metrics/usage.
+
+Manage QoS and persistence:
+• QoS (e.g., MQTT 0,1,2), message retention, replay, partitions, or durable queues depending on the broker used.","• Direct calls (REST/gRPC) work in simple architectures but fail in scenarios requiring flexibility, concurrent events, or fault tolerance.
+
+• Continuous polling can simulate reactivity, but introduces overhead and latency.
+
+The publish/subscribe approach has been proven to be scalable, decoupled, and well-suited for dynamic and distributed systems.","    ROS and ROS 2 use pub/sub topics as the basis for communication between robotic nodes (e.g., /camera/image_raw, /cmd_vel).
+
+    MQTT is widely used in IoT architectures to connect sensors, actuators, and backend services via local or cloud brokers.
+
+    In EdgeAIBench, different pipeline stages (data collection, inference, analysis) can be organized as pub/sub nodes with buffering to enable scalability and fault tolerance.
+
+    NATS JetStream is employed in modern edge systems for communication between lightweight containers, supporting event persistence and streaming.
+"
+T04,G12,Centralize the control and observability of Edge nodes using orchestration or management platforms exposing declarative interfaces to define and monitor system state.,"Enable unified, secure, and scalable management of Edge nodes through declarative interfaces and orchestration platforms, providing real-time visibility, remote state control, and continuous automation over the lifecycle of distributed components.","""In distributed architectures, the lack of centralization hampers state consistency, failure detection, and update orchestration.""
+
+""Monitoring based solely on local logs or ad-hoc probes is fragile, non-scalable, and prone to silent failures.""
+
+""Manual operations across multiple nodes increase the risk of inconsistency and hinder auditing or rollback.""","In systems with multiple Edge nodes operating simultaneously, possibly geographically distributed.""
+
+""In environments requiring auditing, compliance, or version control, such as industries, smart cities, or healthcare networks.""
+
+""In autonomous systems that reconfigure at runtime and require an external, observable control plane.""","Adopt declarative management and orchestration platforms, such as:
+• Kubernetes (with extensions such as KubeEdge, MicroK8s, k3s).
+• IBM Open Horizon.
+• Balena, Portainer, or custom systems via GitOps (e.g., Flux, ArgoCD).
+
+Define the desired state with YAML/JSON files:
+• Services, configurations, health check routines, available resources, limits, etc.
+
+Expose state telemetry via APIs or events:
+• For example: Prometheus, MQTT/AMQP, OpenTelemetry, or REST interfaces with status endpoints.
+
+Enable automatic reconciliation:
+• If a component fails or diverges from the desired state, the platform must act to automatically restore it.","• Custom scripts and manual SSH — useful for prototypes, but unfeasible at scale.
+
+• Fragmented dashboards with metric collection but lacking declarative action — provide visibility, yet not orchestration.
+
+Declarative platforms offer the optimal balance between human control and safe automation, particularly in edge environments.","EdgeAIBench provides centralized mechanisms to observe experiments in real time, aggregating metrics by device, task, and location — highlighting the importance of centralization for scientific and operational validation."
+T11,G13,"Design event-driven processing pipelines with continuous synchronization between edge and cloud environments, supporting configurable data sources, processing logic, and output channels.","Enable data collected and processed at the edge to be handled in reactive streams, with continuous synchronization with the cloud for storage, inference, aggregation, or visualization, while preserving configurable flexibility to dynamically define sources, processing logic, and destinations.","""Batch processing or rigid flows hinder responsiveness to real-time events and make the system less adaptive.""
+
+""The absence of continuous synchronization between edge and cloud leads to data inconsistency, event loss, or delayed response to critical conditions.""
+
+""Systems with statically coded flows hinder adaptation to new devices, sensors, or analytical objectives.""","""In systems that process continuous streams of sensory data, images, audio, or metrics.""
+
+""In hybrid Edge–Cloud environments, where part of the logic is executed locally and part remotely.""
+
+""In cases where immediate local response is required, but history and global analysis occur in the cloud (e.g., healthcare, smart cities, Industry 4.0).""","Adopt dataflow frameworks:
+• Apache NiFi, Node-RED, Flink, StreamSets, or custom pipelines using SDKs such as RxPy, Pipes and Filters.
+
+Separate pipeline stages:
+• Sources: sensors, SDKs, APIs, files, streams.
+• Processing: preprocessing, cleaning, inference, enrichment.
+• Outputs: databases, alerts, dashboards, automated reactions.
+
+Continuous synchronization:
+• Edge sends incremental events (e.g., MQTT, gRPC streaming) and receives commands or updates from the cloud.
+• Use checkpointing, buffering, and secure retransmission mechanisms.
+
+Dynamic configuration:
+• Pipelines defined via declarative files (YAML/JSON) or graphical interfaces for runtime reconfiguration.","• Rigid pipelines or those embedded directly in code are feasible, but hinder reconfiguration, adaptation to new sensors, or tuning.
+
+• Batch data uploads to the cloud are simple, but inadequate for applications requiring reactivity or continuous control.
+
+Event-driven pipelines provide fast response, modular scalability, and straightforward adaptability.","    Node-RED implements visual pipelines with configurable blocks connecting MQTT sensors, custom logic, and HTTP/DB outputs.
+
+    EdgeAIBench models modular and comparable pipelines where each stage (e.g., data collection, inference, transmission) can be executed at different layers — with continuous and adaptive synchronization.
+
+    In ROS/ROS 2 architectures, nodes act as pipeline stages, exchanging messages via topics. Integration with the cloud can be achieved through bridges (e.g., ROS-MQTT, ROS-WebSockets).
+
+    Apache NiFi enables building declarative pipelines with routing, transformation, and delivery logic to multiple destinations (e.g., cloud plus local database).
+"
+T11,G14,Use isolated modules and configurable containers as self-contained execution units for deploying business logic at the edge.,"Ensure that business logic at the edge is portable, secure, configurable, and easy to maintain by encapsulating each functional unit into isolated modules or self-contained containers with independent configurations, thereby facilitating selective deployment, updates, and recovery in case of failure.","""The lack of isolation among functions may cause conflicts, cascading failures, or uncontrolled impacts during updates.""
+
+""Manual and non-configurable deployments increase maintenance complexity and reduce scalability.""
+
+""In edge environments, where resources are limited, it is crucial to avoid dependency overlap, memory leaks, and process interference.""","In Edge–Cloud architectures where different modules (e.g., inference, capture, compression, actuators) operate under distinct requirements and lifecycles.""
+
+""In environments requiring automated deployment, over-the-air (OTA) updates, rollback, or service failover.""
+
+""When multiple applications share the same edge device, requiring resource isolation and security.","Containerize each module using tools such as Docker, Podman, or OCI runtimes:
+• Example: vision-service, mqtt-gateway, model-runner, logger — each in its own container with CPU/memory limits.
+
+Make configuration external and declarative:
+• Use environment variables, YAML/JSON files, mounted volumes, or centralized configuration services (e.g., Consul, etcd).
+
+Isolate resources:
+• Apply namespaces, cgroups, and AppArmor/SELinux policies to ensure failures in one module do not affect others.
+
+Orchestrate with edge-aware platforms:
+• K3s, KubeEdge, Balena, Docker Compose, Open Horizon — to manage lifecycle and dependencies.","• Running multiple scripts or processes within the same environment — functional, but with high risk of interference and limited reusability.
+
+• Packaging everything into a single monolithic application — impractical for maintenance and scalability in distributed edge environments.
+
+Containers or isolated modules are the widely adopted best practice, even in architectures with constrained resources.","    BalenaOS enables the deployment of multiple independent containers on edge devices, with update and monitoring services.
+
+    EdgeAIBench organizes processing stages (data collection, inference, analysis) into independent units, simulating isolated and configurable deployment across nodes and layers.
+
+    ROS 2–based architectures implement each node as a separate process, allowing logical isolation and modular replacement via ROS 2–ready containers.
+
+    In inference solutions with TensorFlow Lite, each model can be packaged with its specific runtime in separate containers, with dedicated quantization settings or hardware allocation configurations.
+"
+T11,G15,Adopt event-driven mechanisms that listen to and act upon critical events to support secure and autonomous edge architectures.,"Establish a reactive operational model in which Edge nodes can detect, respond to, and automatically adapt to critical events (e.g., failures, threats, context changes), thereby ensuring operational autonomy, real-time security, and resilience in distributed environments.","""The absence of reactivity undermines the ability of the Edge to operate independently from the cloud.""
+
+""Delayed responses to critical events (e.g., anomalies, intrusion attempts, power or network failures) may cause data loss, downtime, or even risks to physical safety.""
+
+""Polling-based or static script models are neither efficient nor scalable for autonomous systems.""","In EdgeAI systems with low-latency and high-availability requirements, operating in dynamic or adverse environments (e.g., mobility, industry, energy).""
+
+""In autonomous environments or those with intermittent connectivity, where decisions cannot rely on the cloud.""
+
+""In cases with multiple sensors and actuators where it is necessary to detect patterns, react, and prevent failures automatically.","Create an event engine at the Edge:
+• Listen to topics, queues, or sensors directly via pub/sub, WebSockets, file watchers, GPIO triggers, etc.
+• Example: on_temperature_rise, on_node_failure, on_anomaly_detected.
+
+Associate events with safe and autonomous actions:
+• Example: restart service, isolate node, generate alert, switch operation mode, enforce restriction policy.
+
+Use reactive middlewares or frameworks:
+• Node-RED, Apache Edgent, RxPy, Kafka Streams, NiFi, or orchestrators with event hooks.
+
+Integrate with security policies:
+• Define events related to authentication violations, encryption failures, or traffic anomalies.","• Passive monitoring with scheduled scripts (e.g., cron jobs combined with log parsing) — useful for telemetry, but insufficient for rapid and autonomous response.
+
+• Manual alert dashboards — only effective with human intervention, which falls short of autonomy requirements.
+
+Reactive events are essential for truly autonomous and secure architectures.","    Node-RED enables the construction of visual “when event X occurs, trigger Y” rules, useful for edge gateways with local logic.
+
+    KubeEdge allows listening to device and node events, triggering remote or local controllers based on policies.
+
+    ROS 2 robots based on lifecycle nodes react to system events to enter safety or recovery modes.
+
+    In EdgeAIBench, events such as “model ready,” “data received,” or “node failure” trigger transitions in the inference pipeline — reinforcing the importance of reactive models in distributed environments."
+T02,G16,Implement certificate-based authentication to secure communication between system modules through verified identities.,"Ensure that only authenticated entities with verified identity can communicate within the system, thereby establishing mutual trust among distributed modules (edge, fog, cloud) and protecting against spoofing, hijacking, and man-in-the-middle attacks.","""The lack of robust authentication allows fake or compromised devices to infiltrate the system.""
+
+""Authentication based solely on tokens, passwords, or IPs is fragile in distributed and dynamic environments.""
+
+""The absence of verifiable identity undermines access control, traceability, and trust revocation.""","In systems with distributed communication among multiple agents (e.g., edge nodes, cloud services, brokers, gateways).""
+
+""In scenarios with sensitive data flows, where trust must be verified through digital identity.""
+
+""In architectures requiring dynamic revocation, auditing, and fine-grained access policy definition.""","Use X.509 certificates issued by a trusted Certificate Authority (CA):
+• Generate a key pair per module (public/private) and sign it with an internal CA (e.g., Vault, cfssl) or external CA (e.g., Let’s Encrypt, AWS ACM).
+
+Enable mTLS (mutual TLS) between services:
+• Bidirectional authentication: both client and server present and validate their certificates.
+
+Automate certificate rotation:
+• With SPIRE, Vault, cert-manager, or integration with enterprise PKI.
+
+Store certificates securely:
+• Use secure storage (e.g., HSM, TPM, file system with restricted permissions).
+
+Validate identity before any sensitive communication:
+• Apply validation in REST APIs, gRPC, MQTT brokers, tunnels, and service mesh sidecars.","• Static tokens or passwords — useful for prototyping, but vulnerable and difficult to rotate.
+
+• IP allowlists or ACLs — fragile in mobile or dynamic networks.
+
+Certificate-based authentication is widely regarded as the gold standard for securing communication across distributed systems.","MQTT brokers such as EMQX and Mosquitto support mutual TLS (mTLS) with client certificate authentication to secure connections. During the TLS handshake, the client presents its X.509 certificate, which the broker verifies against a trusted Certificate Authority (CA). Only clients with valid certificates signed by the trusted CA are authorized to connect, ensuring identity verification and encrypted transport. This setup enforces strict authentication and confidentiality between clients (devices) and the broker, protecting IoT infrastructures from unauthorized access and man-in-the-middle attacks.
+
+Service meshes like Istio, Consul Connect, and Linkerd implement automatic mTLS between services, using internally managed CA certificates to establish encrypted and authenticated communication channels without requiring application code changes.
+
+Open Horizon uses certificates to guarantee that only trusted edge agents communicate with the cloud control plane, enforcing secure identity and access management.
+
+EdgeAIBench considers secure, identifiable connections between modules a fundamental criterion in distributed pipelines, especially in sensitive scenarios like medical ICUs and smart home IoT, where data protection and regulatory compliance are critical.
+"
+T02,G17,Use decentralized authentication methods backed by secure hardware to verify edge device identities without relying on centralized authorities.,"Establish distributed trust among Edge devices through strong and tamper-proof hardware-generated identities, thereby eliminating reliance on central servers and enabling autonomous, secure, and scalable operations in disconnected or adverse environments.","""In many Edge scenarios (remote, offline, critical environments), relying on a central authority for authentication is unfeasible or risky.""
+
+""Software-based identities or those stored in files may be copied or compromised.""
+
+""The absence of decentralized mechanisms makes the system less resilient to attacks, failures, or censorship.""","In systems operating without continuous cloud connectivity (e.g., vehicles, drones, industrial sensors).
+
+""In environments at risk of attacks on centralized infrastructure, where authenticity must be guaranteed even offline.
+
+""In architectures requiring distributed zero trust, with support for local revocation, P2P authentication, and spoofing resistance.","Use secure hardware to store identities:
+• TPM (Trusted Platform Module), Secure Element (SE), embedded HSMs, or TEEs (e.g., ARM TrustZone).
+• Each device has a private key injected or internally generated, which is never exposed.
+
+Adopt decentralized authentication schemes:
+• Challenge–response authentication with local keys.
+• Schemes such as WebAuthn/FIDO2, DID (Decentralized Identifiers), or Verifiable Credentials.
+
+Enable peer-to-peer authentication between devices:
+• Example: edge nodes validating each other’s identity based on signatures and local reputation.
+
+Distribute trust via blockchain or DHT (optional):
+• Example: registration of public identities or revocation status without a single point of control.","• Certificates issued by a central CA — functional, but dependent on connectivity and lacking local resilience to compromise.
+
+• Locally stored passwords or tokens — weak, easily replicable, and without support for secure revocation.
+
+Decentralized approaches supported by hardware are more robust, particularly in autonomous and mission-critical architectures","    FIDO2 with TPM in industrial or embedded devices enables secure mutual authentication without intermediate servers.
+
+    Edge computing nodes use hardware-derived keys to authenticate among themselves in local mesh networks (e.g., drones, cooperative vehicles).
+
+    Nitro Enclaves and Intel SGX are used to validate edge agents' identities through remote attestation without relying on a continuous central authority.
+
+    SPRUCE, in tactical and military edge network environments, uses Secure Elements and mutual trust among peers for autonomous authentication.
+"
+T02,G18,Implement nonce-based tokens with timestamp verification to ensure message freshness and reduce replay or flooding attack surfaces.,"Ensure that each message exchanged among system components is unique and recent, thereby preventing old or duplicated messages from being maliciously reused in replay or flooding attacks. This strengthens the authenticity and integrity of communication, especially in distributed and low-latency systems.","""Replay attacks: an adversary intercepts valid messages and resends them, triggering unauthorized actions.""
+
+""Flooding: massive resending of valid messages out of context, consuming system resources.""
+
+""The absence of freshness verification allows systems to treat old messages as legitimate, undermining business logic, security, or consistency.""","Any communication between distributed modules (edge ↔ edge, edge ↔ cloud) involving critical messages or sensitive actions.
+
+Environments with public, wireless, or open networks, where interceptions and replays are plausible.
+
+Event-driven systems, REST/gRPC APIs, and pub/sub messaging.","Generate tokens containing:
+• Nonce (unique random number per message).
+• Timestamp (time of message issuance).
+• Signature or MAC (to ensure integrity and authenticity).
+
+Validate on the receiver side:
+• The timestamp must be within an acceptable time window (e.g., ± 5 seconds).
+• The nonce must not have been used previously (store recent nonces within a time window).
+
+Possible implementations:
+• In APIs: JWT tokens with fields iat and jti or nonce.
+• In lightweight protocols: include nonce and timestamp in MQTT, CoAP, or RPC payloads.
+• Use HMAC(nonce + timestamp, secret) to authenticate short messages.
+
+Maintain a nonce/timestamp cache per trusted origin (with timeout).","• Timestamps alone — protect against replay attacks but do not ensure uniqueness.
+
+• Signatures alone — guarantee authenticity but do not prevent message replay.
+
+• TLS alone — secures the communication channel but not the message semantics. A nonce provides additional and more granular protection.
+
+The combination of nonce, timestamp, and signature/authentication is the robust standard for ensuring both freshness and uniqueness.","    OAuth 2.0/OpenID Connect uses nonce and iat (issued at) claims to ensure that tokens are not reused.
+
+    In industrial protocols (e.g., OPC-UA, DNP3 Secure), messages contain sequence numbers and timestamps with cryptographic protection against replay attacks.
+
+    MQTT with signed payloads (e.g., JWT or HMAC) containing nonce and exp (expiration) helps prevent duplicate commands for actuators.
+
+    In federated learning systems, secure aggregation protocols use nonce to ensure that updates are not reused or manipulated by internal adversaries.
+"
+T02,G19,Isolate edge workloads in secure execution environments governed by strict access policies and limited execution rights.,"Protect sensitive workloads executed on Edge devices against internal or external compromise by running them in isolated environments with strict permission restrictions, controlled resource access, and limited privileges — thereby promoting execution security, damage containment, and defense in depth.","""Workloads running with broad permissions may be exploited by adversaries to escalate privileges, access data, or attack other local services.""
+
+""The absence of effective isolation allows failures or vulnerabilities in one module to impact the entire device.""
+
+""In Edge environments, devices generally have limited physical security, which makes logical process isolation essential.""","In Edge systems running sensitive workloads: AI inference, physical device control, environmental monitoring, etc.
+
+In devices shared among multiple services, organizations, or users.
+
+In regulated applications that require data segregation, compliance, and attestation of secure execution.","Isolated execution environments:
+• Containers with reinforced isolation: Docker with seccomp, AppArmor, SELinux, no-new-privileges, user namespaces.
+• Sandboxes: gVisor, Kata Containers, Firecracker (lightweight VMs), or WebAssembly runtimes (e.g., Wasmtime, Wasmer).
+• Trusted Execution Environments (TEEs): Intel SGX, ARM TrustZone, AMD SEV.
+
+Strict access policies:
+• RBAC or ABAC to control access to APIs, files, devices, and networks.
+• Mount volumes as read-only, use tmpfs, and block sensitive syscalls.
+
+Run workloads as non-privileged users:
+• Specific UID/GID, restricted groups, no root privileges.
+
+Continuous monitoring and auditing:
+• Log system calls, network activity, and resource usage (via auditd, Falco, AppArmor logs).","• Running processes directly as services without isolation — feasible for prototyping, but insecure in production environments.
+
+• Using minimalist operating systems (e.g., Alpine, Distroless) reduces the attack surface, but still requires logical isolation.
+
+The use of containers with restricted execution and security policies is the ideal and widely adopted approach for secure edge computing.","    AWS Greengrass enables the execution of Lambda functions at the edge with configurable permissions, isolated environments, and continuous validation.
+
+    gVisor is used in embedded devices to isolate workloads with low overhead and strong containment.
+
+    In architectures such as EdgeAIBench, isolating inference components in configurable containers facilitates testing with malicious or faulty loads without compromising the overall system.
+
+    Kata Containers or Firecracker VMs run AI models with near-VM level isolation, especially in gateways orchestrating multiple parallel tasks.
+"
+T02,G20,Establish encrypted point-to-point tunnels and implement active failure detection to ensure secure and resilient communication.,"Ensure that communication among distributed components (Edge, cloud, gateways) is secure, private, and fault-tolerant by establishing point-to-point tunnels with strong encryption and continuous monitoring mechanisms capable of detecting outages, delays, or connectivity degradation.","""Communication without encryption or through shared channels may be intercepted, manipulated, or redirected (Man-in-the-Middle).""
+
+""Silent connectivity failures between edge and cloud nodes may result in data loss, inference delays, or unexecuted critical actions.""
+
+""The absence of active detection makes the system vulnerable to intermittent failures and progressive degradation.""","In EdgeAI systems with unstable, public, or wireless connections, such as 4G/5G, Wi-Fi, or LPWAN.
+
+In architectures with direct tunnels between devices, especially when no centralized routing is available.""
+
+When mission resilience must be ensured (mission-critical, real-time, or sensitive data).","Establish encrypted point-to-point (P2P) tunnels:
+• WireGuard, OpenVPN, Tailscale, StrongSwan (IPSec).
+• Ensures confidentiality, mutual authentication, and resistance to spoofing or sniffing.
+
+Integrate with dynamic name resolution:
+• Using mDNS, local DNS, or DHT for distributed peers.
+
+Implement active fault detection:
+• Keep-alive with heartbeat (e.g., MQTT, gRPC), ping intervals, or API-based health checks.
+• Protocols with built-in recovery (e.g., QUIC, NATS, DDS with liveliness checks).
+• Failure notifications to orchestrators or monitoring systems (e.g., Prometheus + Alertmanager).
+
+Enable automatic failover and reconnection:
+• Redirect traffic to secondary channels or dynamically reconfigure (e.g., via SD-WAN or endpoint rebind).","• Unencrypted direct connections — fragile and vulnerable, strongly discouraged in production environments.
+
+• Passive retransmission via polling — consumes bandwidth and introduces latency.
+
+• Payload-only encryption — improves privacy but does not protect metadata or provide resilience.
+
+The combination of tunneling and active detection offers both strong security and reactive capabilities.","    WireGuard is used in edge-to-edge mesh networks with permanent tunnels, public key per node, and secure routing.
+
+    gRPC employs keepalive and reconnect backoff mechanisms to detect silent failures and automatically reconnect.
+
+    In EdgeAIBench, tests with components disconnecting and reconnecting simulate failures and evaluate recovery via the transport layer.
+
+    KubeEdge implements disconnection detection of edge nodes towards the cloud control plane, triggering reconnection events or automatic isolation.
+"
+T18,G21,"Ensure secure and trusted communication between nodes through mutual authentication, encrypted channels, and dynamic trust revocation triggered by attestation or policy violations.","Establish a secure and verifiable communication channel among system nodes (Edge, Fog, Cloud) with mutual authentication, end-to-end encryption, and the ability to automatically revoke trust when a node is compromised or violates defined policies.","""The absence of mutual authentication may allow connections from fake (spoofed) or compromised nodes.""
+
+""A unilaterally encrypted channel does not protect against Man-in-the-Middle attacks.""
+
+""The lack of reactive trust revocation allows insecure agents to continue operating even after a violation has been detected (e.g., through logs or remote attestation).""","""In architectures with multiple cooperative nodes (e.g., edge ↔ edge ↔ cloud), exchanging data, models, or commands.""
+
+""In systems subject to dynamic trust policies (e.g., temporary devices, multi-tenant, federated learning).""
+
+""In environments where security, traceability, and threat isolation are critical (e.g., healthcare, industry, tactical networks).""","Mutual Authentication (mTLS or equivalent):
+• Each node has its own certificate/identity, validated reciprocally.
+• Based on X.509, SPIFFE/SPIRE, or hardware-backed identity frameworks.
+
+End-to-end encrypted channels:
+• TLS 1.3, WireGuard, IPSec, gRPC, MQTT over TLS.
+
+Dynamic trust revocation:
+• Continuous attestation with TPM/TEE and policies such as: “revoke if checksum mismatch, outdated patch, resource abuse...”
+• Controllers with rules: if attestation.fail or policy.breach → quarantine(node).
+
+Integration with trust authority:
+• Local or federated authority with support for revocation lists (CRL), OCSP, or MQTT/REST events for revocation.
+
+Post-revocation isolation:
+• Disconnect channel, terminate session, revoke certificate, or block message routes.","• Unilateral authentication via TLS — provides partial protection but does not ensure mutual trust.
+
+• Static list of trusted devices — inflexible and vulnerable to insider attacks or post-deployment failures.
+
+A comprehensive approach requires mutual TLS (mTLS), secure channels, and active revocation based on context or attestation.","    SPIRE + SPIFFE provide identity and mutual authentication with short-lived, renewable, and policy-revocable tokens.
+
+    KubeEdge implements bidirectional mTLS between edge and cloud, with certificate rotation and state validators.
+
+    ROS 2 with DDS Secure can validate node identities and enforce revocation based on certificates and external policies.
+
+    In EdgeAIBench, simulated failure scenarios can be used to revoke trust from experimental nodes — due to invalid checksums, absence of heartbeats, or anomalous behavior.
+"
+T18,G22,Establish data usage policies and adopt secure middleware that enforces contextual access control and provides end-to-end protection for streaming data.,"Ensure that data transmitted among system components is protected end-to-end and accessed only by authorized entities according to context-based usage policies — such as data type, source, time, purpose, or location — thereby promoting privacy, compliance, and dynamic security in distributed environments.","""Streaming data (such as video, sensors, or continuous inference) is often transmitted in real time without granular control, exposing risks of unauthorized access.""
+
+""Systems with static or centralized authorization cannot enforce adaptive policies across multiple consumers or dynamic scenarios.""
+
+""The absence of secure middleware hampers the consistent enforcement of usage policies across multiple modules and layers (edge, fog, cloud).""","In EdgeAI systems that process and transmit sensitive or personal data: video, voice, biometrics, telemetry, clinical logs, etc.""
+
+""In environments with multiple data consumers (e.g., dashboards, cloud analytics, concurrent AI models).""
+
+""In federated or multi-tenant architectures with differentiated policies for privacy, retention, or purpose.","Define data usage policies:
+• Rules such as: “data type X may only be processed by module Y between 08:00–18:00 if location = BR and trust level ≥ 0.8.”
+• Use declarative formats such as OPA (Open Policy Agent), Rego, or XACML.
+
+Adopt secure middleware with contextual control:
+• Eclipse ioFog, Zenoh, DDS Secure, gRPC interceptors, NATS with JetStream + policy engine.
+• Intercepts, applies rules, and encrypts/filters data dynamically based on context.
+
+Implement end-to-end encryption and sensitivity labeling:
+• Example: AES-GCM protected stream, with each message carrying classification/sensitivity metadata.
+
+Audit and active enforcement:
+• Signed access logs, flow blocking upon policy violation, or real-time resolution/sampling downgrade.","• TLS alone — secures the communication channel but does not prevent improper reuse once the data reaches its destination.
+
+• Document-based policies (e.g., SLAs, Terms of Service) — lack technical enforcement and do not prevent actual misuse.
+
+The combination of a policy engine, secure middleware, end-to-end encryption, and contextual metadata provides real and adaptive protection.","    DDS Secure allows configuring governance documents with access policies based on domain, topology, and data type.
+
+    OPA is used with NATS or gRPC to enforce conditional policies (e.g., blocking access from services outside a trusted cluster or with low trust scores).
+
+    In EdgeAIBench, sensitive data from ICU or Smart Home scenarios can be protected by controlling who consumes it, when, and under which conditions — simulating contextual enforcement.
+
+    Zenoh implements dynamic filters and fine-grained control with plugins that integrate policies at publish/subscribe time.
+"
+T03,G23,Implement automatic device registration and discovery mechanisms integrated with centralized management platforms.,"Facilitate the scalable and secure provisioning of new devices through automatic discovery and registration mechanisms integrated into a central management platform. This reduces manual effort, accelerates onboarding, maintains configuration consistency, and enables global control over the Edge environment.","""Manual registration processes are error-prone, slow, and unfeasible at scale (e.g., thousands of IoT sensors).""
+
+""The absence of automated discovery complicates orchestration and monitoring, preventing dynamic control and real-time auditing.""
+
+""Devices may be connected inconsistently, without a unified policy or central traceability.""","In EdgeAI architectures with multiple devices dynamically connecting (sensors, actuators, gateways, cameras, etc.).""
+
+""In industrial, urban, or federated environments that require central governance, even with distributed topologies.""
+
+""In projects requiring automatic provisioning, on-demand reconfiguration, or rapid hardware replacement.""","Automatic discovery mechanisms:
+• mDNS / DNS-SD (Zeroconf), SSDP (UPnP), CoAP discovery, MQTT retained topics.
+• Protocols with presence announcements (heartbeat + metadata).
+
+Automatic registration with identity control:
+• Device sends identity + metadata → management platform validates → response with config/token.
+• Integration with membership services such as AWS IoT Core, KubeEdge, BalenaCloud, Open Horizon.
+
+Integration with central platform:
+• Backend receives discovery/onboarding events and applies policies for configuration, labeling, visibility, and security.
+
+Identity verification before acceptance:
+• Device attestation, fingerprinting, certificate, PSK, or signature.","• Manual registration or CLI-based scripting — feasible only in small or controlled environments.
+
+• Discovery without integration into the central platform — enables visibility, but lacks control and governance.
+
+Integration with a central platform, combined with secure automated registration, represents the most robust and scalable model.","    KubeEdge uses EdgeController and DeviceTwin for automatic discovery and management of devices connected to edge nodes.
+
+    Balena allows devices to self-enroll in specific projects using tokens and receive remote configuration after the first boot.
+
+    AWS IoT Device Provisioning automates registration and assignment of policies/configurations based on device identity or hardware fingerprint.
+
+    In EdgeAIBench, onboarding of nodes and sensors is simulated at scale, reflecting the use of dynamic discovery in experimental environments.
+"
+T03,G24,Implement centralized solutions to automate the orchestration and configuration of numerous edge devices across distributed environments.,"Provide a centralized and automated control plane capable of orchestrating the full lifecycle of multiple Edge devices — including service deployment, updates, reconfigurations, and monitoring — thereby ensuring consistency, scalability, and efficient governance in heterogeneous and distributed environments.","""Manually managing distributed devices is unfeasible at scale and highly error-prone.""
+
+""Edge environments often present diversity in hardware, connectivity, and regional requirements — hindering uniform configurations without automation.""
+
+""The absence of centralized orchestration prevents the efficient rollout of updates, security policies, and policy-based reconfigurations.""","""In environments with a large number of heterogeneous Edge devices, such as factories, smart cities, or distributed healthcare systems.""
+
+""When coordinated response to changes is required (e.g., reconfiguring all devices in case of a new policy, failure, or event).""
+
+""In architectures operating under continuous update cycles (AI models, firmware, business logic, communication routes).""","Adopt edge-aware orchestration platforms:
+• KubeEdge, Open Horizon, BalenaCloud, AWS Greengrass, Portainer Edge Agent, Azure IoT Edge.
+
+Declare desired state and enable automatic reconciliation:
+• YAML manifests, JSON files, or declarative dashboards.
+• The orchestrator detects drift and reconciles the state (deploy, stop, update).
+
+Group devices by profiles and apply batch configurations:
+• Example: group “edge-cam-Salvador” → receives model_v2 and pipeline update.
+
+Manage connectivity and dependencies:
+• Status monitoring, fallback, asynchronous commands (e.g., MQTT, NATS, WebSockets).
+
+Integrate security and access control policies per module/node.","• Automation scripts (e.g., Ansible, shell) are useful, but lack real-time monitoring and state reconciliation.
+
+• Manual tools or local dashboards may be suitable for small projects, but do not scale securely or with traceability.
+
+Centralized orchestration enables consistency, operational efficiency, and integration with DevOps and observability practices.","    KubeEdge synchronizes the state of Kubernetes pods, devices, and volumes with edge nodes — enabling full declarative management.
+
+    BalenaCloud applies OTA updates to multiple edge devices with automatic rollback in case of failure.
+
+    IBM Edge Application Manager (Open Horizon) automates workload deployment with policy rules based on location, device type, and connectivity.
+
+    EdgeAIBench uses configurable orchestration scenarios to simulate different workload distributions and coordinated reactions to events, reinforcing the importance of unified control in experimental environments.
+"
+T03,G25,Implement connection lifecycle tracking through standardized birth/death messages to monitor Edge device availability.,"Ensure continuous visibility into the presence and availability of Edge devices over time through standardized messages that signal system entry (“birth”) and exit (“death”) — thereby enabling proactive failure detection, availability auditing, and automated responses to connectivity events.","""The absence of a formal presence mechanism makes it difficult to determine whether a device is active, inactive, or experiencing a silent failure.""
+
+""Failures may go unnoticed, undermining data reliability and decisions based on missing inputs.""
+
+""Continuous monitoring based solely on polling or logs is neither efficient nor scalable.""","In any EdgeAI architecture with multiple devices that dynamically connect and disconnect.
+
+In solutions requiring high availability, reliability, or real-time decision-making (e.g., control, monitoring, continuous inference).
+
+In environments where auditing the historical presence of devices is relevant (e.g., compliance, SLA, diagnostics).","Define standard birth/death messages:
+• Birth Message: sent at startup or reconnection; contains ID, device type, timestamp, version, etc.
+• Death Message: sent before shutdown or after a heartbeat timeout.
+
+Use event-driven communication channels:
+• MQTT, NATS, DDS, ZeroMQ, WebSockets.
+• Topics such as status/{device_id}/birth and status/{device_id}/death.
+
+Heartbeat as fallback:
+• If no explicit death message, configure a timeout (e.g., 60s without heartbeat = disconnected).
+
+Log events and trigger responses:
+• Update dashboards, send notifications, reconfigure routing logic, or replace nodes.","• Continuous polling of each device’s state — inefficient and prone to false positives or negatives.
+
+• Indirect traffic monitoring (e.g., logs, metrics) — may not accurately reflect actual presence.
+
+Birth/Death messages are simple, efficient, and compatible with asynchronous and reactive architectures.","    Sparkplug B (MQTT specification) formally defines NBIRTH, NDEATH, DBIRTH, and DDEATH messages for devices and nodes — with standardized payloads.
+
+    KubeEdge maintains a heartbeat connection between cloud and edge; absence of response triggers a disconnected event.
+
+    Eclipse ioFog sends periodic presence signals and uses planned death messages before scheduled shutdowns.
+
+    In EdgeAIBench, node join and leave events can be simulated — these lifecycle events can be tracked via messages for experimental reliability and robustness studies.
+"
+T06,G26,"Adopt digital twin architectures to model and manage the identity, status, and behavior of Edge devices in real time, enabling intelligent capabilities and seamless cloud integration.","Enable each Edge device to be digitally represented by a dynamic virtual model (Digital Twin) that reflects its identity, state, and behavior in real time, serving as an integration point between Edge and cloud and enabling intelligent reasoning, continuous monitoring, and secure remote control.","""Without an updated virtual model, it is difficult to understand the current state of distributed devices, especially when they are offline or intermittently connected.""
+
+""The lack of a unified digital interface for each device undermines interoperability, automation, and integration with AI/ML applications.""
+
+""Real-time read/write operations performed directly at the Edge create strong coupling and hinder centralized control.""","In Edge–Cloud architectures where devices must be remotely monitored, controlled, or simulated.
+
+In industrial, urban, or healthcare environments where the lifecycle management of physical assets must be traceable and auditable.
+
+In solutions requiring integration with predictive models, centralized control dashboards, or state/condition-based logic.","Create a digital representation for each device:
+• Unique ID, type, current status (online, failure, etc.), properties (configuration, sensors), allowed commands, history.
+
+Synchronize state between Edge and Twin:
+• Edge sends updates (pull/push); Twin may issue commands (write-back).
+• Use brokers (e.g., MQTT, DDS, NATS) or REST/gRPC APIs.
+
+Integrate with digital twin platforms:
+• Azure Digital Twins, AWS IoT TwinMaker, Eclipse Ditto, or custom frameworks.
+
+Enable simulation, reconfiguration, and AI:
+• The Twin can feed predictive models, simulate failures, or anticipate maintenance.
+
+Associate identity and access control with the Twin:
+• The twin acts as a proxy for authorization, tracking, and governance.","• Monitoring state directly through logs or metrics — does not provide full context or support for high-level reasoning.
+
+• Managing devices via direct commands — leads to tight coupling and hinders abstraction, versioning, or simulation.
+
+The Digital Twin is the ideal modern abstraction for intelligent, interoperable, and controllable Edge Computing.","    Azure Digital Twins provides a graph representation of devices with status and relationships, integrating with edge sensors via IoT Hub.
+
+    Eclipse Ditto enables creating digital “things” synchronized with physical devices through MQTT, REST, or WebSockets.
+
+    In EdgeAIBench, scenarios with simulated or partially connected devices can be managed using digital twins — facilitating testing, logging, and intelligent orchestration.
+
+    ROS 2 integrated with digital twins allows robots to continuously publish their state and be monitored or controlled by cloud-aware systems.
+"
+T07,G27,"Use declarative configurations (e.g., ConfigMaps) and edge-side agents to orchestrate network plugins, load balancing rules, and secure tunnels.","Enable programmable, reproducible, and secure control of network configuration in Edge devices through local agents that interpret declarative configurations to enforce routing, balancing, and security policies — thereby promoting automation, consistency, and operational flexibility.","""Manual network configurations are fragile, non-traceable, and difficult to scale in distributed Edge environments.""
+
+""Without local agents, rules do not persist across reboots or adapt to real-time changes.""
+
+""The absence of declarative orchestration makes the system less transparent and prevents the automatic reconciliation of the desired state.""","In Edge systems that require load balancing, dynamic routing, tunneling, or local firewall policies.
+
+In environments with multiple autonomous or semi-autonomous Edge devices that must maintain network consistency even when offline.
+
+In solutions with a centralized control plane but decentralized execution via local agents.","Use declarative configurations (YAML, JSON):
+• Example: Kubernetes ConfigMaps, .conf files, or versionable custom schemas.
+• Declare: load-balancing rules, routes, VPN peers, allowed ports and protocols.
+
+Run edge-side agents as reconcilers:
+• Read configurations, apply rules, and monitor state.
+• Examples: cilium-agent, Envoy sidecar, Open vSwitch agent, or custom agents in Python/Go.
+
+Synchronize with control plane or broker:
+• Pull or push updates via MQTT, HTTP, GitOps, etc.
+
+Manage secure tunnel rules dynamically:
+• WireGuard configurations, NAT rules, peer control based on policies or context.","Yes, but with limitations:
+
+• Shell scripts — fragile, hardly reusable, and lacking declarative traceability.
+
+• Manual configuration — impractical at scale and carries high operational risk.
+
+• Push-only remote control — sacrifices reactivity and local flexibility.
+
+The declarative model with local agents enables resilience, observability, and true automation.","    KubeEdge allows configuring ConfigMaps synchronized with agents on the edge, which apply network rules, QoS, or proxy settings.
+
+    Cilium uses eBPF and declarative configuration to enforce network policies and load balancing with full visibility.
+
+    Nebula (a VPN mesh) uses YAML files to orchestrate private networks among edge nodes, with ACLs and routes configured by agents.
+
+    In EdgeAIBench, different load balancing and routing scenarios could be modeled by declarative configurations to simulate controlled network responses.
+
+"
+T07,G28,Implement real-time observability mechanisms with model-driven automatic reconfiguration of system architectures.,"Enable the system to be continuously monitored in real time and allow its architecture to be automatically reconfigured based on predefined models (e.g., rules, policies, ML), thereby ensuring resilience, efficiency, and operational autonomy even under context changes, failures, or overload.","""The absence of real-time observability hinders the detection of anomalies, bottlenecks, or incipient failures.""
+
+""Manual or reactive reconfiguration is slow and may result in downtime or service degradation.""
+
+""EdgeAI systems operate in highly dynamic environments (network, energy, load, topology), requiring autonomous and adaptive response.""","In Edge systems that must maintain QoS, security, or performance even under adverse or variable conditions.
+
+In environments with multiple devices and services that both cooperate and compete for dynamic resources.
+
+In architectures with declarative or policy-driven control, where decisions can be automated based on telemetry.","Continuous observability mechanisms:
+• Collection of metrics (CPU, memory, latency, failures), structured logs, distributed traces, and component status.
+• Tools: Prometheus, OpenTelemetry, Grafana, Jaeger.
+
+Reconfiguration models based on rules or ML:
+• Rules: “if CPU > 90% for 30s, migrate workload”; “if node X fails, reassign control.”
+• ML: anomaly classification, load prediction, decision trees, or reinforcement learning for allocation.
+
+Automatic reconfiguration:
+• Modify routing, migrate containers, adjust pipelines, pause services.
+• Applied by orchestrator or local agent (KubeEdge, Horizon, or custom supervisors).
+
+Versionable architectural models:
+• Architecture as code, graphs, or DSLs (e.g., TOSCA, YAML, Rego policies).","• Passive monitoring and manual actions — unfeasible at scale or under time-critical conditions.
+
+• Response based solely on alerts — reactive, prone to delays or inconsistent decisions.
+
+The observable and adaptive model forms the foundation for intelligent and resilient Edge architectures.","    KubeEdge combined with Prometheus and Horizontal Pod Autoscaler (HPA) enables automatic scaling of pods at the edge based on local or global metrics.
+
+    Open Horizon permits defining automatic reconfiguration policies triggered by monitored events or conditions.
+
+    Self-adaptive IoT architectures use explicit models (component graphs, weights, dependencies) to determine which parts of the system should be reconfigured.
+
+    In EdgeAIBench, controlled stress scenarios could be used to trigger automatic changes in the pipeline or node reallocation.
+
+"
+T07,G29,Use well-defined environment variables in containers to ensure compatibility with Edge orchestration systems.,"Standardize container configuration through well-defined environment variables, thereby enabling portability, automation, and direct integration with Edge orchestration systems such as KubeEdge, Balena, Open Horizon, or others — facilitating dynamic deployment, remote reconfiguration, and predictable behavior.","""Containers without standardized configuration require manual adjustments or separate images for each environment.""
+
+""The absence of well-defined variables prevents centralized control of container behavior through orchestrators.""
+
+""Edge environments require flexibility to operate under different networks, hardware profiles, or gateways — which demands parameterizable configuration at deployment time.""","Edge containers that must operate under different topologies, brokers, devices, or execution profiles.
+
+In environments using declarative orchestration tools that dynamically inject variables at deployment time.
+
+In CI/CD pipelines or remote device management platforms (Balena, Horizon, Kubernetes, etc.).","Define a standard set of environment variables per container type:
+• Example: EDGE_NODE_ID, BROKER_URI, MQTT_TOPIC_PREFIX, DEVICE_ID, INFERENCE_MODEL_PATH, LOG_LEVEL, TZ, METRICS_ENABLED.
+
+Expose variables in Dockerfile with ENV or via external .env file.
+
+Allow overrides via orchestration platforms:
+• Kubernetes: using env and envFrom in Pod/Deployment YAML.
+• Balena: variables defined per device/service.
+• Open Horizon: via userInput and deployment.policy.
+
+Validate variables at startup:
+• Check and fallback to default values, with clear logs.
+• Example: if not os.getenv(""BROKER_URI""): exit(""Missing BROKER_URI"").","• Internal configuration files (e.g., JSON, YAML) are functional, but not natively compatible with orchestrators unless mounted as volumes.
+
+• Command-line flags are useful, but less flexible than environment variables in managed environments.
+
+• Hardcoded configurations are inflexible and risky in dynamic environments.
+
+Environment variables are the standard, compatible, and secure method for parameterizing containers in Edge Computing.","    Balena allows defining environment variables per service and per device via dashboard or API — e.g., API_TOKEN, CLOUD_URL, DEVICE_NAME.
+
+    Open Horizon uses userInput to inject values such as MODEL_ID, STORAGE_PATH, SECURE_MODE.
+
+    In EdgeAIBench, different experimental configurations could be injected via environment variables at pipeline deployment time on various edge nodes.
+
+    Kubernetes (with KubeEdge) allows declaring environment variables in .yaml files, which are synchronized with the remote container.
+"
+T15,G30,"Use dedicated container registries to store and distribute tool images, ensuring consistency and reproducibility across development environments.","Ensure that all images of tools, agents, and system services can be versioned, audited, and distributed in a controlled manner through dedicated registries — thereby ensuring environment reproducibility, consistency between testing and production, and efficiency in deploying to multiple Edge nodes.","""Downloading images directly from public sources may lead to uncontrolled variations across environments, as well as security risks.""
+
+""Edge environments may operate without continuous internet access, requiring a local mirror or trusted repository.""
+
+""The absence of explicit versioning or traceability hinders rollback, validation, and the reproducibility of experiments.""","In systems that use containers as the unit of distribution for business logic, inference, agents, or tools.""
+
+""When orchestration, testing, or validation of an environment in a controlled manner is required, ensuring that all dependencies are fixed and auditable.""
+
+""In Edge solutions with automated deployment via KubeEdge, Balena, Portainer, Horizon, etc.","Use dedicated registries:
+• Private: Harbor, GitHub Container Registry, GitLab, AWS ECR, private Docker Hub, Azure ACR.
+• On-premises: local Harbor, registry:2, Nexus with OCI support.
+
+Manage authentication and permissions:
+• Tokens, OAuth, CI/CD credentials, namespace-based rules.
+
+Version images with clear and immutable tags:
+• Example: edge-agent:v1.2.0, model-runner:2025-07-29, test-env@sha256:abcd....
+
+Integrate into build and deployment pipeline:
+• Automatic push after build/test → remote pull via orchestrator → deploy at the Edge.
+
+Optional: configure a local mirror:
+• For offline environments or bandwidth-constrained contexts (e.g., military base, closed lab).","• Manually building and copying images to each node — unscalable and prone to inconsistencies.
+
+• Using public Docker Hub — fast, but introduces security risks, uncertain versioning, and external dependency.
+
+Dedicated registries provide control, security, and traceability — all essential for distributed EdgeAI environments.","    Open Horizon allows edge agents to pull images from a private registry authenticated with automated deployment policies.
+
+    KubeEdge supports pod deployment with images from a private registry (e.g., internal Harbor registry with tag device-orchestrator:v2.3.1).
+
+    BalenaCloud uses its own secure registry to control version rollout per device.
+
+    In EdgeAIBench, repetition of distributed experiments benefits from fixed images with guaranteed hash/tag.
+"
+T08,G31,Implement heartbeat and health check mechanisms to detect connectivity issues or unresponsiveness in system components and edge devices.,"Proactively detect connectivity failures, inactivity, or anomalous behavior in system components (services, agents, Edge nodes) through periodic heartbeats and health checks — thereby enabling automatic response, rerouting, or isolation of problematic components.","""The absence of presence and health monitoring leads to delayed failure detection, data loss, and decisions based on inactive components.""
+
+""Distributed systems may continue operating with an inconsistent view, unaware that parts of the system are offline or degraded.""
+
+""Without such mechanisms, it is difficult to implement failover, scaling, self-recovery, or autonomous resilience.""","In distributed Edge–Cloud systems where components may fail or disconnect unexpectedly.""
+
+""In service-oriented architectures (microservices, agents, digital twins).""
+
+""In environments with multiple Edge devices cooperating or dynamically connecting (e.g., drones, IoT, mobile nodes).","Heartbeats:
+• Each component/node sends periodic messages (e.g., every 10s) to indicate that it is active.
+• Typical protocols: MQTT retained topic, HTTP ping, NATS pub, CoAP ping, gRPC keepalive.
+
+Health Checks (active or passive):
+• Active: API /healthz, systemctl is-active, docker inspect, etc.
+• Passive: analyze absence of logs, metrics, or failures in periodic calls.
+
+Timeout and automatic alert/reaction:
+• Example: 3 missed heartbeats → mark as offline, trigger recovery, or reassign task.
+
+Integration with orchestrators and dashboards:
+• Tools such as Prometheus + Alertmanager, KubeEdge, Horizon, Balena.","• Manual polling — inefficient, unscalable, and reactive.
+
+• Isolated logs and metrics — useful for diagnostics, but ineffective for detecting absence in real time.
+
+The combination of heartbeat, health checks, timeouts, and alerts constitutes a robust and widely adopted approach.","    KubeEdge monitors the connection between cloud and edge via bidirectional heartbeat — if the node does not respond, it is marked as disconnected.
+
+    Balena Supervisor detects service failures through configurable health checks and automatically restarts containers.
+
+    MQTT with Sparkplug B defines use of birth/death and health payload messages to indicate device availability.
+
+    In EdgeAIBench, node failure simulations could use heartbeat loss as a trigger for rerouting or node isolation.
+"
+T08,G32,"Use open-standard observability tools to collect, structure, and expose system metrics and logs for monitoring and automation.","Enable continuous, interoperable, and auditable observation of the behavior of Edge systems and their components by using standardized tools for collecting, structuring, and exposing metrics and logs — thereby facilitating monitoring, diagnosis, decision automation, and incident response.","""Without standard tools, each component may adopt different formats and methods, hindering a unified view of the system.""
+
+""The lack of structured metrics and consistent logs undermines automated responses and proactive problem detection.""
+
+""Proprietary or tightly coupled solutions limit integration with DevOps ecosystems or Edge-native environments.""","""In distributed systems where it is necessary to track the state, performance, and failures of agents, containers, networks, sensors, and logic.""
+
+""When automated actions based on telemetry are required (e.g., scaling, reconfiguration, alerts, isolation).""
+
+""In environments with multiple modules and services, where interoperability with third-party tools (CI/CD, monitoring, AI) is critical.""","Metrics with Prometheus/OpenMetrics:
+• Expose a /metrics endpoint or use exporters (e.g., node_exporter, cAdvisor).
+• Structure: metric_name{labels} value timestamp.
+
+Structured logs with JSON + OpenTelemetry:
+• Record logs in structured format for easy parsing (e.g., Fluent Bit, Loki, Elastic).
+• Categorize by level, source, code, and cause.
+
+Tracing with OpenTelemetry or Jaeger:
+• Trace distributed requests with correlatable contexts.
+
+Dashboards with Grafana or Kibana:
+• Visualize real-time metrics with panels per module, node, cluster, or event.
+
+Integration with automation and alerts:
+• Alertmanager, Loki alert rules, MQTT triggers, webhooks.","• Local text file logs — useful only for manual debugging and inefficient for system-wide analysis.
+
+• Proprietary tools — may work, but offer limited portability, vendor lock-in, and reduced compatibility with Edge environments.
+
+The use of open-standard tools ensures reusability, integration, and operational scalability.","    Prometheus and Grafana monitor edge agents exposing metrics via /metrics endpoint or via push gateway.
+
+    Fluent Bit aggregates logs from edge containers, converts them to JSON, and sends them to a central backend.
+
+    Jaeger traces calls between inference services and captures the distributed pipeline flow.
+
+    In EdgeAIBench, different scenarios and workloads can be monitored with Grafana dashboards based on standardized metrics, facilitating comparative analysis and diagnosis.
+"
+T08,G33,"Implement observability strategies that encompass tracing, logging, and recording of lifecycle events across architecture components and Edge devices.","Provide deep and historical visibility into the functioning of the Edge system through an observability strategy that combines tracing (execution tracking), structured logging (behavior and failures), and lifecycle event recording (startup, shutdown, failures, updates) — thereby enabling auditing, diagnosis, and automated contextual response.","""Isolated or unstructured logs hinder the diagnosis of distributed failures.""
+
+""The absence of tracing makes the path followed by requests or data across edge/cloud components invisible.""
+
+""Without lifecycle recording, it is impossible to audit when and why a device entered or left the system, or underwent changes.""","n Edge–Cloud architectures composed of multiple services and devices that exchange data and commands with one another.""
+
+""In applications requiring compliance, auditing of automated decisions, failure traceability, or explainability of behavior (e.g., healthcare, security, industry).""
+
+""In solutions involving frequent disconnections/reconnections, over-the-air updates, or distributed pipeline execution.","Structured Logging:
+• Use JSON format with fields such as timestamp, level, module, device ID, event.
+• Forward logs to agents like Fluent Bit, Logstash, or Vector.
+
+Distributed Tracing:
+• Implement OpenTelemetry or Jaeger/Zipkin to correlate events across components (e.g., capture → inference → decision).
+• Assign trace_id and span_id to data flows or requests.
+
+Lifecycle event logging:
+• Birth/death messages, update applied, reconnection, reconfiguration, timeout, critical error.
+• Store in event databases or centralized logging systems (e.g., Loki, InfluxDB).
+
+Integration with monitoring and automation:
+• Use events to trigger alerts, self-healing, or reconfiguration (e.g., via Prometheus Alertmanager, webhooks, MQTT triggers).","• Relying solely on local logs or basic metrics — useful for ad-hoc debugging, but lacking distributed context.
+
+• Tracing without correlation to logs and events — limits cross-diagnosis capabilities and reduces explainability.
+
+A comprehensive strategy requires integration of logs, traces, and lifecycle events to provide full contextual understanding.","    OpenTelemetry exports traces and metrics to backends such as Grafana Tempo, Jaeger, and Prometheus.
+
+    Fluent Bit structures and exports logs from containers and edge agents to a central backend with filters by event type.
+
+    Sparkplug B uses lifecycle messages NBIRTH, NDEATH, DBIRTH, and DDEATH with informative payloads.
+
+    In EdgeAIBench, events like ""start_inference,"" ""node_joined,"" ""model_reconfigured,"" and ""failure_recovered"" could be logged — correlating logs with system state.
+"
+T12,G34,"Implement fault-tolerant persistence strategies for critical data, including support for automated recovery and state restoration.","Ensure that essential system data (e.g., measurements, inferences, device states, configurations) is stored in a fault-resilient manner, and that the system is capable of automatically recovering its state after crashes, disconnections, or restarts — thereby ensuring operational continuity and data integrity.","""The loss of critical data at the Edge may be irreversible, especially when communication with the cloud is intermittent.""
+
+""Failures in local storage or unexpected reboots may lead to state inconsistency, incorrect decisions, or failed recovery.""
+
+""The absence of fault-tolerant persistence strategies undermines the reliability, auditability, and functional safety of the system.""","""In Edge environments with intermittent communication with the cloud, or subject to power, network, or system failures.""
+
+""In critical applications (healthcare, industry, automation) that require local resilience and operational continuity.""
+
+""In inference, control, or data collection pipelines that cannot lose events or historical records in case of failure.""","Resilient local persistence:
+• Use lightweight databases with recovery support: SQLite + WAL, LevelDB, RocksDB, local InfluxDB, or versioned JSON files.
+• Write to disk before sending to the cloud (store-and-forward).
+
+Automatic state recovery:
+• Restore the last known snapshot at startup.
+• Preserve operational context (e.g., active model, buffers, configurations).
+
+Eventual synchronization with the cloud:
+• Buffer undelivered data (e.g., local queue) and resend once connectivity is restored.
+• Tag events with timestamps and statuses (persisted, sent, acknowledged).
+
+Redundancy and integrity:
+• Automatic periodic backups.
+• Checksums, journaling, or compression with verification.","• Sending data directly to the cloud only — does not ensure availability during disconnections.
+
+• In-memory logs — are lost upon failure or reboot.
+
+• Local storage without automatic recovery — leads to inconsistency after failures.
+
+A comprehensive strategy includes secure local logging, recovery mechanisms, synchronization, and auditability.","    SQLite with Write-Ahead Logging (WAL) mode is used by agents to record sensor measurements with safe commits and automatic recovery.
+
+    Open Horizon allows local storage with later synchronization via MQTT or REST when the connection is restored.
+
+    EdgeX Foundry implements event persistence with retry buffers and replay after recovery.
+
+    In EdgeAIBench, failure simulations could involve local state restoration and retransmission of lost events as part of robustness evaluation.
+"
+T12,G35,"Adopt storage solutions that align with architectural constraints: use SQLite for minimal footprint, PostgreSQL for advanced query support, and MinIO/S3 for distributed object storage.","Select storage solutions appropriate to the execution context (Edge, Fog, Cloud) based on resource constraints, access complexity, and scalability — thereby ensuring efficiency, compatibility, and ease of maintenance across different layers of the architecture.","""Edge systems operate under severe CPU, memory, disk, and connectivity constraints, making the use of heavy DBMSs or centralized infrastructure unfeasible.""
+
+""The absence of proper segmentation by storage type hinders consistency, performance, and portability.""
+
+""There is often confusion between object storage (raw data, models, images) and relational databases (events, status, metadata) — each requiring a distinct approach.""","In architectures that include multiple layers (device, edge node, fog, cloud), with different capacities and persistence purposes.""
+
+""When the system handles relational data + files + models + streams, and must partition storage by type.""
+
+""In projects aiming to maximize portability and ease of deployment across different physical environments.","SQLite (on Edge, embedded):
+• Lightweight local database, ideal for persisting events, configurations, and buffers.
+• Supports ACID, WAL, and multiple connections (with caution).
+
+PostgreSQL (intermediate Edge or Cloud):
+• Suitable for advanced queries, entity relationships, JSONB support, triggers, and full-text search.
+• Easily integrates with analytical tools and dashboards.
+
+MinIO or S3 (Object Storage):
+• Ideal for large files, AI models, images, videos, or binary data.
+• Provides an S3-compatible interface, deployable locally (MinIO) or integrated with AWS/GCP.
+
+Selective synchronization across layers:
+• Transmit to the cloud only what is necessary (e.g., aggregated samples, final inference, critical logs).
+• Keep sensitive or large data locally, with on-demand replication.","• Using SQLite alone — unsuitable for analytical queries, multi-user access, or intensive workloads.
+
+• Deploying PostgreSQL on all devices — too heavy for embedded systems.
+
+• Storing everything in files — reduces portability and complicates querying and validation.
+
+A modular approach ensures scalability, control, and performance tailored to the context.","    SQLite is embedded in edge agents to record sensors, events, and configurations, using WAL mode and supporting later synchronization.
+
+    Centralized PostgreSQL databases are used with schemas for environments, devices, task histories, and deployed models.
+
+    MinIO is configured as a local artifact repository (e.g., neural network weights, captured images, batch dumps).
+
+    In EdgeAIBench, different benchmark layers (IoT, processing, coordination) can be simulated with distinct storages — SQLite for agents, PostgreSQL for the cloud, and MinIO for model buffering.
+"
+T12,G36,Adopt regular serialization of component runtime state to enable recovery in the event of crashes or unsuccessful deployments.,"Ensure that in the event of unexpected crashes, interruptions, or update failures, the system can automatically restore the internal state of its components (memory, context, progress, buffers) based on serialized snapshots taken in a regular and controlled manner.","""Many EdgeAI systems lose operational state after reboots, requiring recomputation, reconfiguration, or human intervention.""
+
+""In failed deployments, it is difficult to return to the last valid state without a restoration point.""
+
+""The absence of scheduled serialization may result in the loss of ongoing tasks, partial data, or temporary configurations, undermining operational continuity.""","""In Edge systems with components that maintain internal state in memory (e.g., buffers, machine states, processing pipelines).""
+
+""In solutions with continuous or partial batch execution, where failures may leave tasks incomplete.""
+
+""In environments with frequent deployments or automated updates, where state rollback must be possible.","Define a serializable component state structure:
+• Example: Python dictionaries, JSON objects, YAML files, snapshots of critical variables.
+
+Serialize periodically and/or event-driven:
+• Example: every 30s, upon completing a stage, or before shutdown.
+• Save to local disk, SQLite, or lightweight databases.
+
+Restore state at startup:
+• Check for snapshot → load → validate consistency → resume execution.
+
+Maintain snapshot versioning and integrity:
+• Include checksum, timestamp, and compatibility with software version.
+
+Integrate with rollback/redeploy systems:
+• If a new deployment fails → revert code and restore the previous state snapshot.","• Reconstructing state from logs or persistent data — feasible, but slower and more error-prone.
+
+• Stateless operation — unsuitable for agents performing control, stream inference, or maintaining communication buffers.
+
+Planned serialization offers lightweight, fast, and context-aware resilience, making it ideal for Edge environments.","    TensorFlow Serving enables persisting the last loaded model and reusing it upon startup.
+
+    MQTT agents can persist the last messages sent, buffers, and active topics (QoS 1/2) as state.
+
+    Edge orchestration agents using Finite State Machines (FSM) can save the current state and context data (last action, recent failure, runtime).
+
+    In EdgeAIBench, experiments with iterative deployments and simulated failures would benefit from state restoration to reduce recovery time.
+"
+T12,G37,"Implement data access control policies that ensure application-specific isolation and user authentication, using database features like role-based access in PostgreSQL.","Ensure that applications and users access only the data strictly necessary through role-based access control policies, formal authentication, and logical isolation by application context — thereby promoting security, compliance, and fault containment in multi-user or multi-service systems.","""The absence of fine-grained control allows distinct modules to inadvertently share data, violating confidentiality or integrity.""
+
+""Applications with broad or unauthenticated access may expose sensitive data, degrade performance, or facilitate lateral movement in case of intrusion.""
+
+""Inadequate isolation undermines compliance (LGPD, GDPR) and hampers the auditing of actions by origin or authorship.""","In EdgeAI systems with multiple applications (e.g., analytics, control, inference) accessing the same database.""
+
+""In multi-user environments where different profiles (admin, operator, viewer) interact with the data.""
+
+""When minimizing the impact of failures or intrusions is required, ensuring that a compromised module does not affect the entire system.","User and application authentication:
+• Create distinct users for each module/application (edge_agent, inference_api, admin_user, etc.).
+• Enable authentication via password, certificate, token, or SSO integration.
+
+Role-based access control in PostgreSQL:
+• Create roles such as ROLE viewer, ROLE operator, ROLE edge_service, etc.
+• Grant permissions with GRANT SELECT, GRANT INSERT, REVOKE UPDATE, etc.
+• Use SET ROLE for temporary privilege escalation when necessary.
+
+Isolation by schema or database:
+• Example: schema_edge, schema_monitoring, schema_recsys.
+• Applications access only their default schema by default.
+
+Auditing and access logs:
+• Enable log_connections, log_statement, and configure auditing via extensions (e.g., pgaudit).","• Access control middleware — useful, but does not replace database-level enforcement.
+
+• Manually defined ACLs per application — less secure, harder to audit, and difficult to scale.
+
+Using roles and schemas directly within the DBMS ensures structural security, performance, and clear governance.","    PostgreSQL roles example:
+
+sql
+CREATE ROLE edge_agent LOGIN PASSWORD 'securepass';
+GRANT SELECT, INSERT ON sensor_data TO edge_agent;
+
+    Edge applications access only the schema_edge, while dashboards access schema_visualization to ensure data segregation.
+
+    Integration with certificate-based authentication enhances security for internal APIs.
+
+    In EdgeAIBench, multiple components sharing the database can be isolated by roles and schemas to avoid overlapping read/write permissions, improving security and data consistency.
+"
+T13,G38,Use hardware-agnostic specifications and flexible connectivity to design lightweight components that manage device interfaces and execute sensor operations in embedded systems.,"Enable embedded and Edge systems to perform operations with sensors and actuators in a modular, lightweight, and portable manner by using generic interfaces and specifications decoupled from specific hardware models or drivers — thereby ensuring reusability, ease of maintenance, and adaptation to multiple physical platforms.","""Components tightly coupled to specific drivers or protocols hinder hardware migration, updating, or replacement.""
+
+""Systems with rigid connectivity (e.g., fixed I2C or GPIO) do not adapt well to the diversity of Edge environments.""
+
+""The absence of abstractions hampers the development of reusable pipelines, automated testing, and rapid deployment.""","In embedded devices and Edge nodes interfacing with sensors, actuators, or local peripherals.""
+
+""In architectures that must run across different hardware families (e.g., Raspberry Pi, Omega2+, ESP32, Jetson Nano).""
+
+""In systems requiring rapid or remote adaptation, including control logic updates or sensor replacement.","Define interface specifications based on abstractions:
+• Example: SensorInterface, ActuatorDriver, DataAcquisitionModule.
+• Separate logical interface from physical implementation (e.g., read_temperature() vs. read_GPIO_04()).
+
+Implement flexible connectivity (multiple protocols):
+• Support for GPIO, I2C, SPI, UART, USB, BLE, Wi-Fi, MQTT.
+• Detect dynamically or configure via .env/JSON.
+
+Create lightweight adaptation layers (adapters, HAL):
+• A generic driver invokes the platform-specific backend based on detected hardware.
+
+Include simulators or mocks for testing without hardware.
+
+Describe components in portable formats:
+• JSON, YAML, TOSCA, or metadata-based descriptors (type, interface, connection, frequency, etc.).","• Hardcoding for each sensor or platform — quick in the short term, but unsustainable over time.
+
+• Heavyweight frameworks — may compromise performance or resource usage on embedded devices.
+
+The ideal solution is lightweight, modular, and agnostic to the underlying hardware, with a safe and detectable fallback mechanism.","    In ROS2, sensor drivers implement standardized interfaces (sensor_msgs) that abstract the underlying protocol.
+
+    EdgeX Foundry allows defining devices and device profiles in YAML format, with flexible integration via microservices.
+
+    Edge agents implement a SensorDriver interface that dynamically changes implementation according to the .env setting, e.g., SENSOR_MODEL=bh1750 or dht22.
+
+    In EdgeAIBench, capture components can be defined by type (video, temperature, accelerometer) with interchangeable adapters for each hardware.
+"
+T13,G39,"Adopt distributed execution architectures that operate across the cloud–edge continuum, dynamically adapting task placement based on proximity and resource availability.","Enable applications to be executed in a distributed and coordinated manner across cloud, fog, and edge — dynamically adapting to connectivity, load, latency, and resource availability conditions — thereby optimizing performance, energy efficiency, and response time.","""Executing all tasks in the cloud results in high latency, excessive bandwidth consumption, and dependence on continuous connectivity.""
+
+""Fixing tasks at the Edge may limit performance, model updating, or global orchestration.""
+
+""The absence of adaptive distributed execution prevents load balancing and resilience under environmental variations.""","""In systems executing AI pipelines (e.g., capture → preprocessing → inference → decision) distributed between edge and cloud.""
+
+""In multi-device, multi-zone, or mobility-based architectures, such as smart cities, robotics, or connected vehicles.""
+
+""When continuous optimization of performance and cost is required, considering latency, energy, bandwidth, and computational power.","Adopt a distributed architecture based on agents or services:
+• Each pipeline component runs on a node (Edge, Fog, Cloud) with asynchronous communication (e.g., MQTT, NATS, gRPC).
+
+Use monitoring and decision mechanisms for dynamic allocation:
+• Collect metrics on CPU, RAM, latency, connectivity, energy.
+• Make decisions based on rules, policies (Rego/OPA), heuristics, or learning models.
+
+Enable task migration or reassignment:
+• Modular containers, decoupled services, migration triggers (e.g., offload_inference(), reroute_task()).
+
+Integrate with compatible orchestrators:
+• Open Horizon, KubeEdge, EdgeMesh, Akri, EVA.
+
+Maintain persistence and state consistency:
+• Progress verification, checkpoints, versioning of models and input/output.","• Executing everything at the edge — secure, but limited in capacity and lacking adaptability.
+
+• Executing everything in the cloud — flexible, but introduces latency and critical network dependency.
+
+• Static node-level allocation — inflexible and prone to local overload.
+
+Distributed and adaptive execution strikes a balance between resilience, performance, and operational flexibility.","    Open Horizon allows dynamic deployment of workloads based on hardware and location policies.
+
+    KubeEdge synchronizes containers between cloud and edge, enabling workloads to scale up or down according to allocation rules.
+
+    EdgeAIBench runs inference tasks at different layers, simulating reallocation based on latency or load.
+
+    In vehicular systems, object inference can be done at the edge (in real-time) or offloaded to the cloud (for review or logging).
+"
+T13,G40,Consider the heterogeneity of physical hardware during architectural design to ensure compatibility with diverse deployment environments.,"Ensure that the system architecture is compatible with a wide variety of physical devices — from microcontrollers to GPU-enabled servers — by adopting practices that abstract, adapt, and flexibilize execution according to the characteristics of each node, thereby enabling portability, scalability, and reuse in distributed Edge environments.","""Projects designed for specific hardware do not scale to other platforms, requiring rework for each new integration.""
+
+""Ignoring heterogeneity leads to execution errors, resource waste, and codebase fragmentation.""
+
+""The lack of compatibility reduces reusability, support for upgrades/modifications, and adoption reach.""","In EdgeAI architectures to be deployed across different device profiles: ARM, x86, microcontrollers, SBCs, GPUs, TPUs.""
+
+""In systems targeting modular distribution, with progressive, federated, or on-demand deployment.""
+
+""When the hardware base is dynamic, evolving, or composed of partners/multiple vendors.","Define minimum requirements per module/component:
+• Example: RAM ≥ 256MB, CPU ≥ 500MHz, network: Wi-Fi or LoRa, Python3 support.
+
+Use portable containers or runtimes:
+• Multi-arch Docker (arm64, amd64), WebAssembly (WASM), OCI images with metadata.
+
+Separate hardware logic into drivers or adapter services:
+• Common interface (SensorInterface, CommAdapter) with platform-specific backends.
+
+Describe compatibility via manifests or policies:
+• Example: requires: GPU, memory_limit: 128MB, arch: ARMv7, storage: SD.
+
+Detect platform and apply automatic adaptations:
+• Bootstrap scripts, auto-detection (uname, /proc/cpuinfo, lshw), fallback to lightweight implementation.","• Ignoring heterogeneity — undermines portability and limits long-term evolution.
+
+• Creating distinct versions for each hardware type — leads to high maintenance costs and increased risk of divergence.
+
+Designing with heterogeneity in mind reduces coupling, expands applicability, and accelerates adoption.","    BalenaCloud permite deploy em múltiplas arquiteturas usando containers multiarch com adaptação automática ao hardware do dispositivo.
+
+    Open Horizon aplica políticas de deploy que consideram restrições de arquitetura e recursos disponíveis para alocar workloads.
+
+    Em EdgeAIBench, experimentos podem ser executados em dispositivos ARM, x86 e GPU, desde que os componentes respeitem as restrições físicas definidas no plano de execução.
+
+    Em soluções ROS/ROS2, a utilização de camadas HAL (hardware abstraction layer) possibilita que o mesmo código controle diferentes robôs com hardware distinto.
+"
+T09,G41,Adopt lightweight model packaging techniques to minimize deployment size and reduce runtime overhead.,"Reduce loading time, memory usage, and bandwidth consumption during the deployment of AI models at the Edge, thereby enabling models to run efficiently even on resource-constrained devices.","This guideline addresses two major challenges typical of EdgeAI:
+
+Limitations of computational and storage resources in edge devices.
+
+High latency and energy consumption associated with loading large models.","Embedded devices, smart sensors, gateways, and microcontrollers.""
+
+""Environments requiring local execution of inference, such as autonomous vehicles, real-time monitoring, industrial, and healthcare applications.""
+
+""Cases where cloud connectivity is intermittent or nonexistent.","Model quantization (e.g., int8): reduces model size and accelerates inference with minimal accuracy loss.
+
+Structured or unstructured pruning: removes redundant neurons or connections.
+
+Knowledge Distillation: trains a smaller student model using the outputs of a larger teacher model.
+
+Conversion to optimized formats (e.g., ONNX, TensorRT, TFLite).
+
+Use of efficient runtime libraries: TensorFlow Lite, EdgeTPU API, TVM, OpenVINO, or DeepSparse.","Yes, additional complementary approaches include:
+
+• Executing distributed inference by partitioning the model between cloud and edge.
+
+• Applying compression techniques based on custom operators or compilation targeting the specific hardware architecture.
+
+Deploying specialized inference functions as decoupled microservices within processing pipelines.","    Google uses TensorFlow Lite (TFLite) on its Android devices to run models with int8 and float16 quantization.
+
+    Intel OpenVINO performs compression and tuning to optimize models for heterogeneous processors.
+
+    Apple Neural Engine requires models optimized for CoreML, including quantization and redundancy reduction.
+
+    TinyML frameworks apply pruning and quantization techniques for on-device inference on microcontrollers such as STM32 and ESP32.
+"
+T09,G42,"Employ distributed and federated execution architectures with state management and decentralized training, using intermediate components such as combiners or aggregators.","Enable collaborative and decentralized execution of AI models across Edge nodes by preserving data locally and securely synchronizing weights or representations in a coordinated manner — with the use of intermediate components (e.g., combiners, aggregators) to manage state, communication, and result consolidation.","""Centralizing training or inference creates issues of privacy, latency, and bandwidth consumption.""
+
+""Edge devices operate under constraints and cannot support continuous data flow or global coordination without optimization.""
+
+""The absence of state management across rounds or training cycles hinders consistency, recovery, and synchronization.""","In systems with multiple Edge devices that must collaborate to train or fine-tune models locally, without sharing raw data.""
+
+""In federated environments (e.g., clinics, factories, vehicles) with privacy restrictions or regional policies.""
+
+""In adaptive AI scenarios where each Edge node trains with its own data but collaborates in forming a global model.","Federated architecture with local training + centralized aggregation:
+• Use aggregators (centralized or hierarchical) to consolidate gradients, weights, or updates.
+• Examples: Federated Averaging (FedAvg), FedProx, FedOpt.
+
+Intermediate components (combiners, edge aggregators):
+• Deployed on gateways or fog nodes; they receive updates from Edge devices and consolidate them before sending to the cloud.
+• May also store local state checkpoints.
+
+Distributed state management:
+• Serialize/store training state (epoch, loss, local model).
+• Model versioning, rollback, and lifecycle control.
+
+Privacy and security:
+• Differential Privacy, Secure Aggregation, Homomorphic Encryption.
+
+Frameworks and tools:
+• Flower, FedML, TensorFlow Federated, OpenFL, PySyft.","• Centralized learning — less secure and more data-efficient, but compromises privacy and creates network dependency.
+
+• Isolated local learning — prevents generalization and limits global collaboration.
+
+The federated model with intermediary components balances local performance, global coordination, and privacy preservation.","    FedML implements decentralized aggregation for federated learning, supporting arbitrary topologies and edge nodes with limited resources.
+
+    Flower enables defining orchestrators and combiners between embedded devices and cloud, managing training state effectively.
+
+    Intel OpenFL uses intermediate aggregators with granular permission control and secure synchronization.
+
+    In EdgeAIBench, federated learning simulations allow comparing strategies for synchronization and use of intermediate components like aggregator gateways.
+"
+T09,G43,Integrate build and model inference pipelines with CI/CD workflows tailored for Edge environments.,"Ensure that models, agents, and inference components are tested, versioned, and automatically deployed through CI/CD pipelines specifically designed for Edge environments — taking into account constraints such as hardware architecture, connectivity, footprint, and local lifecycles.","""The absence of automation leads to inconsistency across environments, delayed deployment of fixes, and difficulty in tracking regressions.""
+
+""Traditional CI/CD (cloud-focused) does not account for Edge device constraints such as intermittent connectivity, CPU limitations, or the need for multi-arch versions.""
+
+""The lack of integration between build pipelines and models prevents standardized testing, rollback, and continuous inference validation.""","""In systems implementing AI pipelines across multiple Edge devices, requiring consistency between testing, staging, and production.""
+
+""In environments with frequent or continuous model updates (e.g., embedded inference, computer vision, adaptive control).""
+
+""In teams operating with DevOps, MLOps, or EdgeOps practices, aiming for rapid and auditable improvement cycles.","CI for code and model build/testing:
+• Unit and functional testing of components (e.g., agent, sensor client, model wrapper).
+• Performance and footprint testing of models (quantized, pruned).
+
+CD for segmented deployment (by node type or location):
+• Conditional deployments by architecture (arm64, x86_64), device type, or connectivity profile.
+• Containers published in registries with automatic tagging/versioning.
+
+Validate inference as part of the pipeline:
+• Simulated inference with validation datasets.
+• Validation against drift, accuracy degradation, or response time violations.
+
+Tools and strategies:
+• GitHub Actions, GitLab CI, Tekton, ArgoCD, Balena CI, MLflow, DVC, KubeEdge OTA.
+
+Rollback and integrity verification at the Edge:
+• Artifact hash/checksum validation.
+• Automatic fallback in case of boot or inference failure.","• Manual deployment or ad hoc scripts — fragile, non-auditable, and error-prone.
+
+• Traditional CI/CD decoupled from the Edge context — often results in incompatible or slow builds, and lacks efficient rollback mechanisms.
+
+An Edge-adapted CI/CD pipeline ensures security, traceability, and operational agility, even in distributed environments.","    Balena CI/CD pipelines detect devices, build multi-architecture containers, and perform OTA deploys automatically.
+
+    MLflow and DVC provide model versioning and validation integrated with Git and controlled deployment.
+
+    KubeEdge uses declarative YAML files synchronized from a central CI server for OTA updates.
+
+    EdgeAIBench benefits from automated pipelines to test and validate locally trained models before experimental rollout.
+"
+T09,G44,Use lightweight and modular runtimes in EdgeAI to isolate AI components and optimize both performance and resource consumption.,"Enable AI components (such as models, preprocessing, inference, and post-processing) to be executed in an isolated, efficient, and scalable manner in Edge environments by using runtimes optimized for reduced footprint and modular execution, compatible with the resource constraints typical of the Edge.","""Heavy runtimes compromise startup time, memory usage, energy consumption, and responsiveness at the Edge.""
+
+""The lack of modularity hinders reuse, reconfiguration, and the composition of components in lightweight pipelines.""
+
+""The absence of isolation among pipeline stages hampers management, debugging, and the independent evolution of each stage.""","""In embedded devices with memory, CPU, and energy constraints, such as gateways, microcontrollers, and SBCs.""
+
+""In architectures executing AI pipelines locally, with multiple components that must be combined or dynamically swapped.""
+
+""In systems requiring fast response time, stability, and runtime reconfiguration.","Select lightweight runtimes compatible with the target model:
+• Examples: TensorFlow Lite, ONNX Runtime, PyTorch Mobile, DeepSparse, TVM, Edge Impulse, Arm Ethos.
+
+Encapsulate each AI component as an independent unit:
+• Separate preprocessing, inference, and post-processing into containers, scripts, or modular services.
+
+Optimize binaries and run under lightweight orchestrators:
+• Use slim containers (e.g., Alpine), WASM runtimes (e.g., Wasmer), microVMs (e.g., Firecracker), or sidecars.
+
+Leverage AOT (ahead-of-time) compilation:
+• Example: TVM to generate architecture-optimized code (ARM, RISC-V, etc.).
+
+Run components with logical isolation (namespaces, sandbox) to increase reliability.","• Generic runtimes (e.g., full Python, standard TensorFlow) are functional but introduce excessive overhead and hinder scalability.
+
+• Monolithic pipelines reduce reusability and adaptability in heterogeneous environments.
+
+Lightweight runtimes combined with modular components provide optimal performance and architectural flexibility.","    ONNX Runtime runs models with quantization support and acceleration on CPU and GPU, providing a reduced footprint.
+
+    TensorFlow Lite Micro executes TinyML models on microcontrollers such as STM32 and ESP32.
+
+    Apache TVM optimizes models for deployment on devices like Raspberry Pi and EdgeTPUs.
+
+    In EdgeAIBench, different runtimes and module combinations can be evaluated for latency, memory usage, and scalability, highlighting the importance of lightweight modularity.
+"
+T10,G45,Implement real-time monitoring and adaptive workload distribution to optimize resource use and avoid system bottlenecks.,"Enable the system to continuously monitor its resources (CPU, memory, latency, network usage, availability) and dynamically adjust the distribution of tasks across Edge, fog, and cloud nodes — thereby preventing bottlenecks, localized overload, and performance degradation.","""Static distributed systems often cause resource underutilization or overload at specific points, leading to failures or high latency.""
+
+""Without monitoring and adaptive reallocation, it is not possible to react to contextual changes (network, energy, failures, mobility).""
+
+""The absence of this guideline hinders continuous optimization and intelligent load balancing.""","In EdgeAI systems with multiple cooperative devices/nodes processing tasks on-demand or in real time.""
+
+""In processing pipelines (e.g., video, sensors, AI) with parallel components and variable workloads.""
+
+""In environments where network, energy, and CPU resources vary dynamically (e.g., smart cities, logistics, robotics).","Continuous monitoring:
+• Collection of metrics: CPU, RAM, GPU, inference latency, message queues, response time.
+• Tools: Prometheus, Node Exporter, Grafana, cAdvisor, Telegraf.
+
+Adaptive workload distribution:
+• Load balancers or orchestrators with decision logic:
+– Round-robin + threshold.
+– Priority-based heuristics.
+– Learning-based models (e.g., load classification, failure prediction).
+
+Mechanisms for reallocation or offloading:
+• Task migration to neighboring nodes or fallback to the cloud.
+• Adaptive delay or input compression to reduce load.
+
+Decentralized or hierarchical decision systems:
+• Gateways with local coordination.
+• Real-time feedback loop with aggregated data.","• Fixed distribution — simple, but neither resilient nor efficient.
+
+• Passive monitoring with manual reaction — slow and reactive.
+
+A real-time adaptive approach ensures continuous operational efficiency and tolerance to contextual variations.","    KubeEdge with Prometheus metrics and Horizontal Pod Autoscaler (HPA) distributes pods among edge nodes based on CPU and memory usage.
+
+    Open Horizon enables workload relocation based on policies combined with monitoring by local agents.
+
+    EdgeAIBench includes simulation scenarios with adaptive load balancing triggered by latency and CPU usage of nodes.
+"
+T10,G46,Adopt frameworks optimized for high-performance workloads and support task-specific model fine-tuning in resource-constrained environments.,"Enable EdgeAI systems to execute intensive workloads (e.g., vision, NLP, time-series prediction) with high efficiency and to adapt models locally for specific tasks, even under memory, energy, and connectivity constraints — by means of optimized frameworks specialized for the Edge.","""Conventional frameworks are not optimized for Edge devices, consuming CPU, RAM, and energy excessively.""
+
+""The absence of lightweight fine-tuning support prevents model specialization to the device’s real context, limiting performance and accuracy.""
+
+""Running full training or generic models at the Edge may cause degradation, high latency, or failures due to lack of resources.""","In Edge devices that must execute customized models for their specific scenario, such as sensors, industrial environments, thermal imaging, or local vocabulary.
+
+In systems requiring low-latency inference and minimal resource consumption.
+
+In disconnected environments, where the model must be refined locally without sending data to the cloud.","Use frameworks optimized for Edge/embedded environments:
+• TensorFlow Lite, TVM, ONNX Runtime Mobile, DeepSparse, OpenVINO, TinyML, Edge Impulse.
+
+Support lightweight fine-tuning techniques:
+• Transfer learning with partial layer freezing.
+• Low-rank adaptation (LoRA), QLoRA, BitFit, adapter layers.
+
+Develop pipelines with adaptive fallback:
+• Example: use a base model with incremental refinement when additional data or idle cycles are available.
+
+Reuse base layers + local cache of context-specific adjustments:
+• Example: profiling user, environment, or recurring tasks.
+
+Package models in a modular manner:
+• Deploy specialized components per task, with dynamic switching at the Edge.","• Using fixed generic models — simpler, but with low adaptability and limited accuracy in local contexts.
+
+• Performing all fine-tuning in the cloud — feasible, but violates privacy requirements, introduces latency, and consumes bandwidth.
+
+The recommended approach ensures intelligent specialization and high performance, even under constrained conditions.","    TFLite Micro + Edge Impulse training small specialized CNNs directly on MCUs.
+
+    DeepSparse running sparsified models (e.g., pruned BERT) with throughput superior to PyTorch on CPUs.
+
+    TVM recompiling models for specific architectures with automatic hardware tuning.
+
+    In Edge AIBench, the impact of local fine-tuning with reduced models per scenario can be simulated, measuring accuracy evolution at each node.
+"
+T10,G47,Implement task offloading and distributed scaling mechanisms to maintain performance when local resource thresholds are exceeded.,"Enable the system to automatically detect and react to local resource overload (CPU, memory, energy, network) by redirecting tasks to neighboring nodes, gateways, or the cloud — through adaptive offloading and distributed scheduling — thereby preserving performance and preventing failures.","""When the local workload exceeds the node’s capacity, there is a risk of failures, high latency, task dropping, or functional degradation.""
+
+""The absence of offloading mechanisms makes the system fragile, inflexible, and prone to collapse under demand peaks.""
+
+""Without distributed scheduling, it is not possible to leverage idle resources in the network or scale elastically on demand.""","""In EdgeAI systems with local processing of data, models, or decisions, operating under variable workloads.""
+
+""In cooperative architectures with multiple nodes or gateways capable of dynamically sharing workloads.""
+
+""In critical solutions where performance degradation or failures must be proactively avoided (e.g., healthcare, vehicles, robotics).","Resource threshold monitoring:
+• CPU > 80%, RAM > 70%, inference queue > N items, response time > threshold.
+
+Adaptive offloading:
+• Redirect tasks to another Edge node, gateway, or cloud based on policies (e.g., latency, load, proximity).
+• Provide fallback mechanisms in case of disconnection.
+
+Distributed scaling:
+• Detect idle resources across the network → automatically allocate new workloads.
+• Use lightweight containers, serverless Edge (e.g., Knative), or decoupled microservices.
+
+Decentralized or orchestrator-based coordination:
+• Gateways redistributing workloads, or peer-to-peer cooperative logic with lightweight consensus.
+
+Maintain integrity and security in offloading:
+• TLS, mutual authentication, origin/destination verification.","• Rejecting tasks under overload — functional, but degrades usability and reliability.
+
+• Manual or script-based scaling — inflexible and non-responsive.
+
+Offloading combined with adaptive scaling provides resilience, elasticity, and continuous system optimization.","    Open Horizon allows mobile deployments: agents detect overload and can move workloads to other nodes.
+
+    KubeEdge with Horizontal Pod Autoscaler (HPA) and offloading policies manages pods based on metrics.
+
+    In Edge AIBench, tasks can be simulated with variable load and offload triggers to cloud or other local nodes based on CPU usage.
+
+    EdgeDroid and ThinkAir implement computation offloading on mobile devices to the cloud based on energy, network, and latency considerations.
+"
+T14,G48,"Offer intuitive SDKs and programmable interfaces that enable developers to efficiently build, deploy, and manage Edge AI components.","Reduce complexity and increase productivity in the development of EdgeAI applications by providing simple, well-documented programming interfaces integrated into the ecosystem — thereby facilitating the creation, testing, deployment, and operation of models and agents at the Edge.","""Complex or non-standardized interfaces hinder developer adoption, testability, and solution evolution.""
+
+""The absence of EdgeAI-specific SDKs requires advanced knowledge of infrastructure, networking, and manual optimization.""
+
+""The lack of integration between development and operations leads to long cycles, error-proneness, and low automation.""","""In environments with multiple developers or teams with diverse profiles (ML engineers, embedded developers, DevOps).""
+
+""In Edge systems that must be easy to extend, test locally, and operate remotely.""
+
+""In situations where development and maintenance time are critical, and update cycles are frequent.","Develop SDKs with coherent APIs and high-level abstractions:
+• Example: edge_agent.deploy(model=""mobilenetv2"", node=""edge-01""), sdk.send_telemetry(data), sdk.observe(resource=""cpu"").
+
+Provide bindings in popular programming languages:
+• Python, Go, C++, JavaScript.
+
+Ensure clear documentation, examples, and CI/CD integration:
+• Ready-to-use snippets, interactive CLI, simulators, quickstart with real datasets.
+
+Expose well-defined REST/gRPC/MQTT interfaces for integration:
+• APIs to send models, update configurations, start jobs, and monitor usage.
+
+Embed deployment, monitoring, and rollback support within SDKs:
+• Commands such as sdk.deploy_model(), sdk.check_health(), sdk.rollback().","• Generic interfaces (e.g., raw REST or MQTT) — functional, but involve a steeper learning curve and often lead to duplicated logic.
+
+• Direct access to databases or configurations — risky and not scalable.
+
+Providing intuitive SDKs accelerates adoption, reduces errors, and shields developers from operational complexity.","    The Edge Impulse SDK allows building, deploying, and managing embedded models with simple commands and bindings in C++, Python, and Web.
+
+    The NVIDIA Jetson SDK provides inference and deployment abstractions with Python (jetson.utils, jetson.inference) tightly integrated with the hardware.
+
+    The AWS IoT Greengrass SDK enables packaging components (lambda functions) and managing modules remotely via CLI and API.
+
+    In Edge AIBench, an SDK could encapsulate experiments with commands like run_experiment(model=""resnet18"", node=""edge2""), enabling reproducibility and automatic logging.
+"
+T14,G49,"Enable the use of DSLs and the integration of custom tasks (e.g., HKTask, MontiThings) to support specialized development needs.","Facilitate the creation and execution of domain-specific tasks through the use of Domain-Specific Languages (DSLs) and customizable frameworks, thereby enabling developers to define specialized logic in a concise, reusable, and adaptable manner for the Edge environment.","""General-purpose languages and tools are often verbose, inflexible, or complex for expressing domain-specific logic (e.g., control tasks, diagnostics, hybrid inference).""
+
+""Embedded and distributed systems require precision, modularity, and high-level validation — something difficult to achieve with general-purpose languages (e.g., C, plain Python).""
+
+""The lack of support for DSLs and customizable tasks undermines specialization and productivity, hindering modular composition and model-driven testing.""","In EdgeAI architectures that require explicit modeling of control tasks, specialized inference, or reactivity (e.g., robotics, cyber-physical systems, industrial control).""
+
+""In environments with developers or domains that benefit from declarative abstractions, including systems and domain engineers.""
+
+""When reuse and automatic code generation are desired, along with formal validation or early simulation.","Adopt domain-specific languages (DSLs) for critical tasks:
+• Example: HKTask for hierarchical/reactive tasks, MontiThings for event-driven components with automatic code generation.
+
+Integrate DSLs into the system build/deploy process:
+• Code generation and packaging as Edge services (container, binary, etc.).
+
+Enable extension with custom tasks:
+• DSL-defined components can encapsulate control logic, inference, communication, or event-driven reactions.
+
+Use modular infrastructure for simulation and testing:
+• Simulators such as iObserve, MontiSim, or integrated validation environments.
+
+Support co-execution with conventional components:
+• DSL-defined tasks interoperating with Python/C++/gRPC via adapters.","• Logic written in traditional languages (e.g., C/C++/pure Python) — feasible, but less expressive, more verbose, and more error-prone.
+
+• Monolithic frameworks with hardcoded tasks — rigid, difficult to maintain, and hard to reuse.
+
+Domain-specific languages (DSLs) combined with custom tasks enhance expressiveness, reusability, and early validation, while emphasizing efficiency and domain clarity.","    HKTask is used to define hierarchical control logic with reactivity—useful in embedded EdgeAI and autonomous systems.
+
+    MontiThings allows modeling components and tasks with events, with automatic C++ code generation for distributed systems.
+
+    In Edge AIBench, DSLs (Domain Specific Languages) could be used to define experimental scenarios, conditional tasks, or adaptive logic for Edge nodes with integrated simulation.
+"
+T14,G50,Adopt modular and extensible software platforms that support functional reuse and extension without requiring full system recompilation.,"Enable EdgeAI architectures to evolve incrementally by reusing existing components and adding new functionalities without the need to recompile or redeploy the entire system — thereby enabling continuous development, simplified maintenance, and use-case-specific customization.","""Monolithic architectures require full recompilation and redeployment even for simple changes, causing downtime, rework, and high maintenance cost.""
+
+""The lack of modularity hinders the reuse of common functionalities (e.g., logging, authentication, monitoring).""
+
+""The absence of extension points prevents customization and integration with new modules, devices, or protocols.""","""In distributed systems that must evolve frequently, adding sensors, models, or domain-specific behaviors.""
+
+""In environments with multiple maintainers or developers, where excessive coupling undermines collaboration.""
+
+""In cases where downtime reduction and selective deployment of components are priorities (e.g., healthcare, manufacturing, robotics).","Organize the system into independent modules:
+• Each service, driver, model, or agent encapsulated as a microservice, plugin, or container.
+
+Define well-specified interfaces and contracts:
+• REST APIs, pub/sub events, definition files (e.g., protobuf, YAML, IDL).
+
+Support hot-swapping or dynamic reconfiguration:
+• Module loading via plugin loaders, containers with mounted volumes, partial updates via OTA.
+
+Adopt frameworks that support extensibility:
+• ROS2, EdgeX Foundry, Open Horizon, Balena, MontiArcAutomaton, MicroEJ.
+
+Enable testing and deployment per component or feature flag:
+• Modular CI/CD, selective rollback, deployment by function or device profile.","• Recompiling the entire system for each change — inefficient, error-prone, and unsuitable for distributed Edge environments.
+
+• Adopting closed and rigid platforms — hampers customization and integration with heterogeneous devices.
+
+Modularity and extensibility enable continuous evolution while preserving operational stability.","    EdgeX Foundry is entirely based on replaceable microservices via configuration.
+
+    ROS2 allows deployment of decoupled nodes, with selective replacement and reuse across different robots.
+
+    Open Horizon organizes workloads as independent services with individual update policies.
+
+    In Edge AIBench, experimental components (models, preprocessors) can be plugged in or replaced without affecting the rest of the platform, simulating real extensibility.
+"
+T14,G51,Integrate a local rules engine to allow administrators to define and enforce custom execution policies at the Edge.,"Enable administrators to define, adjust, and enforce control rules specific to the local environment directly on the Edge device — without relying on cloud connectivity or changes to application code — thereby promoting resilience, autonomy, and contextual governance.","""The lack of configurable local logic prevents rapid reactions to critical events such as failures, anomalies, context changes, or threats.""
+
+""Dependence on the cloud for operational decisions creates latency, fragility, and loss of offline control.""
+
+""Hard-coded policies require recompilation or redeployment, hindering management and on-demand response.""","""In Edge environments with intermittent or limited connectivity, such as factories, rural areas, or mobile systems.""
+
+""In situations requiring local policies under administrative control, such as healthcare, industry, logistics, or public safety.""
+
+""In systems performing critical or adaptive actions based on context (e.g., high temperature, sensor failure, CPU usage, time of day).","Integrate a lightweight rules engine into the Edge agent:
+• Examples: Node-RED, Eclipse Drools, Nools, Rulex, Rete, EdgeX Rules Engine, or YAML/JSON-based logic with interpreter.
+
+Allow administrators to define rules:
+• Declarative language: “IF cpu_usage > 80% THEN throttle_inference()”.
+• Versioned rules, applied via REST, MQTT, or local files.
+
+Support dynamic rule reloading (hot-reload):
+• Periodic checks or remote triggers (e.g., MQTT, OTA, REST PUT).
+
+Ensure security and auditability:
+• Rule validation, execution logs, safe fallback mechanisms.
+
+Rules triggering local system components:
+• Example: suspend task, modify configuration, notify backend, collect additional metrics.","• Hardcoding all policies — rigid and inefficient for dynamic systems.
+
+• Cloud-based rule enforcement — infeasible under disconnection or low-latency requirements.
+
+A local rules engine ensures flexibility and autonomy, with secure configurability at the Edge.","    EdgeX Foundry integrates a rules engine with filters and actions that operate locally based on sensor event data.
+
+    Node-RED enables administrators to model logic using visual blocks and integrate with devices, APIs, and MQTT.
+
+    Industrial systems (e.g., SCADA, modern PLCs) use locally reconfigurable logic for response to critical events.
+
+    In Edge AIBench, policies such as ""if temperature exceeds 70°C, stop inference"" or ""use lightweight model after connection loss"" can be implemented as dynamic local rules.
+"
+T15,G52,"Apply DevOps practices to lightweight Edge clusters using ML lifecycle extensions to automate model training, deployment, and monitoring.","Integrate DevOps principles (automation, versioning, continuous delivery, observability) into the full lifecycle of AI model development and operation in Edge environments — including training, deployment, validation, and continuous monitoring — even in lightweight and distributed clusters.","""The absence of DevOps/MLOps practices in Edge leads to manual updates, node inconsistency, lack of rollback, and missing traceability.""
+
+""Without integration between the model lifecycle and operations, the system does not detect or respond to issues such as drift, inference failures, or performance deviation.""
+
+""Edge clusters are often overlooked in DevOps strategies due to their resource and connectivity limitations.""","In architectures with multiple Edge devices performing local inference, with continuous model update and maintenance requirements.""
+
+""In applications demanding continuous improvement, rapid response to drift, and decision traceability.""
+
+""In embedded clusters (e.g., industrial gateways, mobile systems, micro–data centers) with limited support for traditional DevOps tools.","Adapt DevOps tools to lightweight environments:
+• GitOps with versioned repositories for models and configurations (e.g., FluxCD + K3s).
+• Argo Workflows, Kubeflow Pipelines, or ZenML with lightweight executors for Edge.
+
+Automate the model lifecycle:
+• Training → validation → packaging → OTA deployment → observability → rollback if necessary.
+
+Monitor inference and drift locally:
+• Collect metrics (e.g., accuracy, response time, confidence).
+• Alerts via Prometheus, webhooks, MQTT, or custom logs.
+
+Execute validation and automated testing at the Edge:
+• Compatibility, regression, and resource consumption tests before accepting a new model.
+
+Enable gradual deployment and automatic rollback:
+• Blue-green deployment, canary release, version comparison with tags (v1.3, v1.4-candidate).","• Traditional cloud-based DevOps — inefficient and fragile for Edge environments.
+
+• Manual model deployments — unscalable, insecure, and error-prone.
+
+Applying DevOps with ML-specific extensions in Edge clusters provides agility, reliability, and a continuous learning cycle.","K3s + GitOps (FluxCD) control inference service versions and configure lightweight pipelines at the edge.
+
+ZenML executes local pipelines with monitoring and lightweight retraining steps triggered by drift detection.
+
+Kubeflow Edge, MLflow, MLRun, or Feast integrate orchestration with OTA model deployment.
+
+In Edge AIBench, experiment pipelines can be automated by declarative workflows, with logging, versioning, and rollback per step"
